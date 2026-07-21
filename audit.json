@@ -1,0 +1,61 @@
+{
+    "keepSettings": {
+        "type": 2,
+        "amount": 10
+    },
+    "auditFilename": "audit.json",
+    "hashType": "md5",
+    "extension": "",
+    "files": [
+        {
+            "date": 1783765084231,
+            "name": "var/logs/debug-20260711.log",
+            "hash": "6becdb1405011d23eaefdce0feeee879"
+        },
+        {
+            "date": 1783829603023,
+            "name": "var/logs/debug-20260712.log",
+            "hash": "be5e294d5dd59bf727f1384dd9c748a5"
+        },
+        {
+            "date": 1783834026724,
+            "name": "var/logs/error-20260712.log",
+            "hash": "6b19e10bcc72f85b394226366f775f16"
+        },
+        {
+            "date": 1783928326697,
+            "name": "var/logs/debug-20260713.log",
+            "hash": "8bd85f22ea311b1c2666b9f38e55256e"
+        },
+        {
+            "date": 1783928326699,
+            "name": "var/logs/error-20260713.log",
+            "hash": "a55fdc4091a41c1cc8805c0fc6568972"
+        },
+        {
+            "date": 1784012981397,
+            "name": "var/logs/debug-20260714.log",
+            "hash": "c0991bf52c9d4eafa1bf749ff18c053a"
+        },
+        {
+            "date": 1784196379843,
+            "name": "var/logs/debug-20260716.log",
+            "hash": "2e982e5a57b677f3311397ca86c1f47c"
+        },
+        {
+            "date": 1784196379845,
+            "name": "var/logs/error-20260716.log",
+            "hash": "28201fdac581f5f9707274b066e30b91"
+        },
+        {
+            "date": 1784307965885,
+            "name": "var/logs/debug-20260718.log",
+            "hash": "41cfa3850ee360aac1545d0ef1b3aa43"
+        },
+        {
+            "date": 1784307965889,
+            "name": "var/logs/error-20260718.log",
+            "hash": "5e0828e1562fa3dd1adf44382a65d2d0"
+        }
+    ]
+}
