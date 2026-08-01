@@ -13,7 +13,7 @@ const SPACES_ACL = process.env.SPACES_ACL || 'public-read';
 
 export const s3Client = new S3Client({
   region: process.env.SPACES_REGION,
-  endpoint: process.env.SPACES_ENDPOINT,
+  endpoint: normalizeEndpoint(process.env.SPACES_ENDPOINT, SPACES_BUCKET),
   // Spaces uses virtual-hosted-style URLs (bucket.region.digitaloceanspaces.com),
   // so path-style addressing is intentionally left off.
   credentials: {
@@ -21,6 +21,28 @@ export const s3Client = new S3Client({
     secretAccessKey: process.env.SPACES_SECRET as string,
   },
 });
+
+// The SDK prepends the bucket to the endpoint host for virtual-hosted-style
+// addressing, so SPACES_ENDPOINT must be the *regional* endpoint
+// (https://fra1.digitaloceanspaces.com), not the bucket's own URL
+// (https://bucket.fra1.digitaloceanspaces.com) — otherwise the bucket ends
+// up duplicated in the hostname and every request fails DNS resolution.
+// Strip it here so either form works.
+function normalizeEndpoint(
+  rawEndpoint: string | undefined,
+  bucket: string,
+): string | undefined {
+  if (!rawEndpoint) return undefined;
+  try {
+    const url = new URL(rawEndpoint);
+    if (url.hostname.startsWith(`${bucket}.`)) {
+      url.hostname = url.hostname.slice(bucket.length + 1);
+    }
+    return url.origin;
+  } catch {
+    return rawEndpoint;
+  }
+}
 
 type MulterCallback = (error: any, acceptFile: boolean) => void;
 
