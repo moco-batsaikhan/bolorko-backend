@@ -8,16 +8,6 @@
     "extension": "",
     "files": [
         {
-            "date": 1783765084231,
-            "name": "var/logs/debug-20260711.log",
-            "hash": "6becdb1405011d23eaefdce0feeee879"
-        },
-        {
-            "date": 1783829603023,
-            "name": "var/logs/debug-20260712.log",
-            "hash": "be5e294d5dd59bf727f1384dd9c748a5"
-        },
-        {
             "date": 1783834026724,
             "name": "var/logs/error-20260712.log",
             "hash": "6b19e10bcc72f85b394226366f775f16"
@@ -56,6 +46,16 @@
             "date": 1784307965889,
             "name": "var/logs/error-20260718.log",
             "hash": "5e0828e1562fa3dd1adf44382a65d2d0"
+        },
+        {
+            "date": 1785572634703,
+            "name": "var/logs/debug-20260801.log",
+            "hash": "497e2f5e90614fcccbef0ac70eab9e00"
+        },
+        {
+            "date": 1785572634711,
+            "name": "var/logs/error-20260801.log",
+            "hash": "51772804817b0ce0c15016b1e2d27651"
         }
     ]
 }

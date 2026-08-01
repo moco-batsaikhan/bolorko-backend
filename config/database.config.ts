@@ -19,8 +19,8 @@ export default class DatabaseConfig implements TypeOrmOptionsFactory {
       ssl: process.env.DATABASE_CA_CERT
         ? { ca: process.env.DATABASE_CA_CERT, rejectUnauthorized: true }
         : undefined,
-      synchronize: true,
-      logging: process.env.ENVIRONMENT !== process.env.ENVIRONMENT_PROD,
+      synchronize: process.env.ENVIRONMENT !== 'production',
+      logging: process.env.ENVIRONMENT !== 'production',
       entities: CONSTANTS.entities,
       migrations: ['dist/src/database/migrations/*.js'],
       migrationsRun: false,

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Banner } from './entities/banner.entity';
 import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
+import { deleteS3ObjectByUrl } from '../../common/storage/s3-storage';
 
 @Injectable()
 export class BannerService {
@@ -42,14 +43,22 @@ export class BannerService {
 
   async update(id: number, updateBannerDto: UpdateBannerDto): Promise<Banner> {
     const banner = await this.findOne(id);
+    const previousImage = banner.image;
 
     Object.assign(banner, updateBannerDto);
 
-    return await this.bannerRepository.save(banner);
+    const saved = await this.bannerRepository.save(banner);
+
+    if (updateBannerDto.image && previousImage !== updateBannerDto.image) {
+      await deleteS3ObjectByUrl(previousImage);
+    }
+
+    return saved;
   }
 
   async remove(id: number): Promise<void> {
     const banner = await this.findOne(id);
     await this.bannerRepository.remove(banner);
+    await deleteS3ObjectByUrl(banner.image);
   }
 }

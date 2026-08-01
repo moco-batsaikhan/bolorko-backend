@@ -40,31 +40,17 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRoleEnum } from '../user/entities/user-role.entity';
 import { ParseFormDataPipe } from '../../common/pipes/parse-form-data.pipe';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { createS3Storage } from '../../common/storage/s3-storage';
 
-const categoryImageStorage = {
-  storage: diskStorage({
-    destination: './public/uploads/categories',
-    filename: (req, file, cb) => {
-      const randomName = Array(32)
-        .fill(null)
-        .map(() => Math.round(Math.random() * 16).toString(16))
-        .join('');
-      cb(null, `${randomName}${extname(file.originalname)}`);
-    },
-  }),
-  fileFilter: (req, file, cb) => {
-    if (!file.mimetype.match(/^image\/(jpg|jpeg|png|gif|webp)$/)) {
-      cb(new Error('Only image files are allowed!'), false);
-    } else {
-      cb(null, true);
-    }
-  },
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-};
+const categoryImageStorage = createS3Storage(
+  'categories',
+  /^image\/(jpg|jpeg|png|gif|webp)$/,
+);
+
+const productImageStorage = createS3Storage(
+  'products',
+  /^image\/(jpg|jpeg|png|gif)$/,
+);
 
 @ApiTags('Products')
 @Controller('products')
@@ -141,30 +127,7 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiBearerAuth('access-token')
   @Roles(UserRoleEnum.ADMIN)
-  @UseInterceptors(
-    FilesInterceptor('images', 10, {
-      storage: diskStorage({
-        destination: './public/uploads/products',
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
-          cb(null, `${randomName}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (!file.mimetype.match(/^image\/(jpg|jpeg|png|gif)$/)) {
-          cb(new Error('Only image files are allowed!'), false);
-        } else {
-          cb(null, true);
-        }
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit per file
-      },
-    }),
-  )
+  @UseInterceptors(FilesInterceptor('images', 10, productImageStorage))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Create product with multiple image uploads',
@@ -220,12 +183,10 @@ export class ProductController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   create(
     @Body(ParseFormDataPipe) createProductDto: CreateProductDto,
-    @UploadedFiles() files?: Express.Multer.File[],
+    @UploadedFiles() files?: Express.MulterS3.File[],
   ) {
     if (files && files.length > 0) {
-      createProductDto.images = files.map(
-        (file) => `/uploads/products/${file.filename}`,
-      );
+      createProductDto.images = files.map((file) => file.location);
     }
     return this.productService.create(createProductDto);
   }
@@ -377,10 +338,10 @@ export class ProductController {
   createCategory(
     @Body(ParseFormDataPipe)
     createProductCategoryDto: CreateProductCategoryDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFile() file?: Express.MulterS3.File,
   ) {
     if (file) {
-      createProductCategoryDto.image = `/uploads/categories/${file.filename}`;
+      createProductCategoryDto.image = file.location;
     }
     return this.productCategoryService.create(createProductCategoryDto);
   }
@@ -430,10 +391,10 @@ export class ProductController {
     @Param('id', ParseIntPipe) id: number,
     @Body(ParseFormDataPipe)
     updateProductCategoryDto: UpdateProductCategoryDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFile() file?: Express.MulterS3.File,
   ) {
     if (file) {
-      updateProductCategoryDto.image = `/uploads/categories/${file.filename}`;
+      updateProductCategoryDto.image = file.location;
     }
     return this.productCategoryService.update(id, updateProductCategoryDto);
   }
@@ -465,30 +426,7 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiBearerAuth('access-token')
   @Roles(UserRoleEnum.ADMIN)
-  @UseInterceptors(
-    FilesInterceptor('images', 10, {
-      storage: diskStorage({
-        destination: './public/uploads/products',
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
-          cb(null, `${randomName}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (!file.mimetype.match(/^image\/(jpg|jpeg|png|gif)$/)) {
-          cb(new Error('Only image files are allowed!'), false);
-        } else {
-          cb(null, true);
-        }
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit per file
-      },
-    }),
-  )
+  @UseInterceptors(FilesInterceptor('images', 10, productImageStorage))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Update product with multiple image uploads',
@@ -544,16 +482,14 @@ export class ProductController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProductDto: UpdateProductDto,
-    @UploadedFiles() files?: Express.Multer.File[],
+    @UploadedFiles() files?: Express.MulterS3.File[],
   ) {
     if (files && files.length > 0) {
       if (!updateProductDto.images) {
         updateProductDto.images = [];
       }
       // Add new uploaded images to existing images array
-      const newImages = files.map(
-        (file) => `/uploads/products/${file.filename}`,
-      );
+      const newImages = files.map((file) => file.location);
       updateProductDto.images = [...updateProductDto.images, ...newImages];
     }
     return this.productService.update(id, updateProductDto);
@@ -685,30 +621,7 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiBearerAuth('access-token')
   @Roles(UserRoleEnum.ADMIN)
-  @UseInterceptors(
-    FilesInterceptor('images', 10, {
-      storage: diskStorage({
-        destination: './public/uploads/products',
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
-          cb(null, `${randomName}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (!file.mimetype.match(/^image\/(jpg|jpeg|png|gif)$/)) {
-          cb(new Error('Only image files are allowed!'), false);
-        } else {
-          cb(null, true);
-        }
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit per file
-      },
-    }),
-  )
+  @UseInterceptors(FilesInterceptor('images', 10, productImageStorage))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Add multiple images to product',
@@ -733,7 +646,7 @@ export class ProductController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   addImages(
     @Param('id', ParseIntPipe) productId: number,
-    @UploadedFiles() files: Express.Multer.File[],
+    @UploadedFiles() files: Express.MulterS3.File[],
   ) {
     return this.productService.addImages(productId, files);
   }

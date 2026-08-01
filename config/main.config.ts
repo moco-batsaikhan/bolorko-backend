@@ -15,7 +15,7 @@ export class MainConfig {
 export const CONFIG_NAME_MAIN = 'MAIN_CONFIG';
 
 export default registerAs(CONFIG_NAME_MAIN, () => ({
-  inDevelopment: process.env.ENVIRONMENT === process.env.ENVIRONMENT_DEV,
+  inDevelopment: process.env.ENVIRONMENT === 'development',
   host: process.env.HOST,
   port: process.env.PORT,
   swaggerTitle: process.env.MAIN_TITLE,

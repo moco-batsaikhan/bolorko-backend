@@ -27,7 +27,7 @@ export class CreateBannerDto {
 
   @ApiProperty({
     description: 'Banner image URL',
-    example: '/uploads/banners/abc123.jpg',
+    example: 'https://bolorko-uploads.fra1.digitaloceanspaces.com/banners/abc123.jpg',
     required: false,
   })
   @IsString()

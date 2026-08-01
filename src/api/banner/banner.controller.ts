@@ -28,31 +28,12 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRoleEnum } from '../user/entities/user-role.entity';
 import { ParseFormDataPipe } from '../../common/pipes/parse-form-data.pipe';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { createS3Storage } from '../../common/storage/s3-storage';
 
-const bannerImageStorage = {
-  storage: diskStorage({
-    destination: './public/uploads/banners',
-    filename: (req, file, cb) => {
-      const randomName = Array(32)
-        .fill(null)
-        .map(() => Math.round(Math.random() * 16).toString(16))
-        .join('');
-      cb(null, `${randomName}${extname(file.originalname)}`);
-    },
-  }),
-  fileFilter: (req, file, cb) => {
-    if (!file.mimetype.match(/^image\/(jpg|jpeg|png|gif|webp)$/)) {
-      cb(new Error('Only image files are allowed!'), false);
-    } else {
-      cb(null, true);
-    }
-  },
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-};
+const bannerImageStorage = createS3Storage(
+  'banners',
+  /^image\/(jpg|jpeg|png|gif|webp)$/,
+);
 
 @ApiTags('Banners')
 @Controller('banners')
@@ -106,10 +87,10 @@ export class BannerController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   create(
     @Body(ParseFormDataPipe) createBannerDto: CreateBannerDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFile() file?: Express.MulterS3.File,
   ) {
     if (file) {
-      createBannerDto.image = `/uploads/banners/${file.filename}`;
+      createBannerDto.image = file.location;
     }
     return this.bannerService.create(createBannerDto);
   }
@@ -186,10 +167,10 @@ export class BannerController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body(ParseFormDataPipe) updateBannerDto: UpdateBannerDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFile() file?: Express.MulterS3.File,
   ) {
     if (file) {
-      updateBannerDto.image = `/uploads/banners/${file.filename}`;
+      updateBannerDto.image = file.location;
     }
     return this.bannerService.update(id, updateBannerDto);
   }

@@ -9,6 +9,7 @@ import { IsNull, Repository } from 'typeorm';
 import { ProductCategory } from './entities/product-category.entity';
 import { CreateProductCategoryDto } from './dto/create-product-category.dto';
 import { UpdateProductCategoryDto } from './dto/update-product-category.dto';
+import { deleteS3ObjectByUrl } from '../../common/storage/s3-storage';
 
 @Injectable()
 export class ProductCategoryService {
@@ -85,9 +86,20 @@ export class ProductCategoryService {
       await this.validateParent(updateProductCategoryDto.parentId);
     }
 
+    const previousImage = productCategory.image;
+
     Object.assign(productCategory, updateProductCategoryDto);
 
-    return await this.productCategoryRepository.save(productCategory);
+    const saved = await this.productCategoryRepository.save(productCategory);
+
+    if (
+      updateProductCategoryDto.image &&
+      previousImage !== updateProductCategoryDto.image
+    ) {
+      await deleteS3ObjectByUrl(previousImage);
+    }
+
+    return saved;
   }
 
   async remove(id: number): Promise<void> {
@@ -100,6 +112,7 @@ export class ProductCategoryService {
     }
 
     await this.productCategoryRepository.remove(productCategory);
+    await deleteS3ObjectByUrl(productCategory.image);
   }
 
   // Only two levels are allowed: a parent must be a main category

@@ -34,7 +34,7 @@ export class CreateProductCategoryDto {
 
   @ApiProperty({
     description: 'Category image URL',
-    example: '/uploads/categories/abc123.jpg',
+    example: 'https://bolorko-uploads.fra1.digitaloceanspaces.com/categories/abc123.jpg',
     required: false,
   })
   @IsString()

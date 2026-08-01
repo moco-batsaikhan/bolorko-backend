@@ -19,6 +19,7 @@ import { UpdateProductRatingDto } from './dto/update-product-rating.dto';
 import { ProductCategoryService } from './product-category.service';
 import { CartItem } from '../cart/entities/cart-item.entity';
 import { OrderItem } from '../order/entities/order-item.entity';
+import { deleteS3ObjectByUrl } from '../../common/storage/s3-storage';
 
 @Injectable()
 export class ProductService {
@@ -324,6 +325,8 @@ export class ProductService {
 
     // Now safe to delete the product
     await this.productRepository.remove(product);
+
+    await Promise.all((product.images ?? []).map(deleteS3ObjectByUrl));
   }
 
   // Rating methods
@@ -458,19 +461,17 @@ export class ProductService {
   // Image management methods
   async addImages(
     productId: number,
-    files: Express.Multer.File[],
+    files: Express.MulterS3.File[],
   ): Promise<Product> {
     const product = await this.findOne(productId);
-
-    if (!product.images) {
-      product.images = [];
-    }
+    const previousImages = product.images ?? [];
 
     // Add new image URLs
-    const newImages = files.map((file) => `/uploads/products/${file.filename}`);
+    const newImages = files.map((file) => file.location);
     product.images = [...newImages];
 
     await this.productRepository.save(product);
+    await Promise.all(previousImages.map(deleteS3ObjectByUrl));
 
     // Return the updated product with all relations
     return await this.findOne(productId);
@@ -482,6 +483,7 @@ export class ProductService {
     if (product.images) {
       product.removeImage(imageUrl);
       await this.productRepository.save(product);
+      await deleteS3ObjectByUrl(imageUrl);
     }
 
     // Return the updated product with all relations
@@ -490,8 +492,13 @@ export class ProductService {
 
   async setImages(productId: number, imageUrls: string[]): Promise<Product> {
     const product = await this.findOne(productId);
+    const removedImages = (product.images ?? []).filter(
+      (img) => !imageUrls.includes(img),
+    );
+
     product.setImages(imageUrls);
     await this.productRepository.save(product);
+    await Promise.all(removedImages.map(deleteS3ObjectByUrl));
 
     // Return the updated product with all relations
     return await this.findOne(productId);
