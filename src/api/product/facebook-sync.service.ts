@@ -4,6 +4,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
 import axios from 'axios';
@@ -12,6 +13,7 @@ import {
   ProductPostType,
   ProductStatus,
 } from './entities/product.entity';
+import { uploadBufferToSpaces } from '../../common/storage/s3-storage';
 
 interface FacebookMedia {
   image?: { src: string };
@@ -42,6 +44,7 @@ export interface FacebookSyncResult {
 @Injectable()
 export class FacebookSyncService {
   private readonly logger = new Logger(FacebookSyncService.name);
+  private syncInProgress = false;
 
   constructor(
     @InjectRepository(Product)
@@ -49,7 +52,61 @@ export class FacebookSyncService {
     private readonly configService: ConfigService,
   ) {}
 
+  // Runs on its own schedule in addition to the manual /sync-facebook
+  // endpoint. Silently no-ops when Facebook isn't configured so it doesn't
+  // spam the logs on environments that don't use this integration.
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async autoSyncPosts(): Promise<void> {
+    const pageId = this.configService.get<string>('FACEBOOK_PAGE_ID');
+    const accessToken = this.configService.get<string>(
+      'FACEBOOK_PAGE_ACCESS_TOKEN',
+    );
+    if (!pageId || !accessToken) {
+      return;
+    }
+
+    try {
+      await this.syncPosts();
+    } catch (error) {
+      this.logger.error(
+        `Scheduled Facebook sync failed: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
+
+  // Validates config/in-progress state synchronously and kicks off the sync
+  // without waiting for it to finish, so callers behind a request proxy with
+  // a fixed upstream timeout (e.g. DigitalOcean App Platform) don't 504 on
+  // pages with many posts/images to process.
+  triggerSync(): { message: string } {
+    if (this.syncInProgress) {
+      throw new ServiceUnavailableException('Facebook sync is already running');
+    }
+
+    const pageId = this.configService.get<string>('FACEBOOK_PAGE_ID');
+    const accessToken = this.configService.get<string>(
+      'FACEBOOK_PAGE_ACCESS_TOKEN',
+    );
+    if (!pageId || !accessToken) {
+      throw new ServiceUnavailableException(
+        'FACEBOOK_PAGE_ID and FACEBOOK_PAGE_ACCESS_TOKEN must be configured',
+      );
+    }
+
+    this.syncPosts().catch((error) => {
+      this.logger.error(
+        `Facebook sync failed: ${error instanceof Error ? error.message : error}`,
+      );
+    });
+
+    return { message: 'Facebook sync started' };
+  }
+
   async syncPosts(): Promise<FacebookSyncResult> {
+    if (this.syncInProgress) {
+      throw new ServiceUnavailableException('Facebook sync is already running');
+    }
+
     const pageId = this.configService.get<string>('FACEBOOK_PAGE_ID');
     const accessToken = this.configService.get<string>(
       'FACEBOOK_PAGE_ACCESS_TOKEN',
@@ -61,47 +118,58 @@ export class FacebookSyncService {
       );
     }
 
-    const posts = await this.fetchAllPosts(pageId, accessToken);
+    this.syncInProgress = true;
+    try {
+      const posts = await this.fetchAllPosts(pageId, accessToken);
 
-    const result: FacebookSyncResult = {
-      total: posts.length,
-      created: 0,
-      updated: 0,
-      skipped: 0,
-    };
+      const result: FacebookSyncResult = {
+        total: posts.length,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+      };
 
-    for (const post of posts) {
-      // Skip posts without text — nothing to build a product from
-      if (!post.message?.trim()) {
-        result.skipped++;
-        continue;
-      }
+      for (const post of posts) {
+        // Skip posts without text — nothing to build a product from
+        if (!post.message?.trim()) {
+          result.skipped++;
+          continue;
+        }
 
-      const existing = await this.productRepository.findOne({
-        where: { facebookPostId: post.id },
-      });
-
-      if (existing) {
-        this.applyPostToProduct(existing, post);
-        await this.productRepository.save(existing);
-        result.updated++;
-      } else {
-        const product = this.productRepository.create({
-          facebookPostId: post.id,
-          stock: 0,
-          status: ProductStatus.ACTIVE,
+        const existing = await this.productRepository.findOne({
+          where: { facebookPostId: post.id },
         });
-        this.applyPostToProduct(product, post);
-        await this.productRepository.save(product);
-        result.created++;
+
+        if (existing) {
+          // Only re-fetch images when they haven't been mirrored to Spaces
+          // yet — avoids re-downloading/re-uploading on every sync tick.
+          await this.applyPostToProduct(
+            existing,
+            post,
+            this.needsImageMigration(existing),
+          );
+          await this.productRepository.save(existing);
+          result.updated++;
+        } else {
+          const product = this.productRepository.create({
+            facebookPostId: post.id,
+            stock: 0,
+            status: ProductStatus.ACTIVE,
+          });
+          await this.applyPostToProduct(product, post, true);
+          await this.productRepository.save(product);
+          result.created++;
+        }
       }
+
+      this.logger.log(
+        `Facebook sync finished: ${result.created} created, ${result.updated} updated, ${result.skipped} skipped (of ${result.total} posts)`,
+      );
+
+      return result;
+    } finally {
+      this.syncInProgress = false;
     }
-
-    this.logger.log(
-      `Facebook sync finished: ${result.created} created, ${result.updated} updated, ${result.skipped} skipped (of ${result.total} posts)`,
-    );
-
-    return result;
   }
 
   private async fetchAllPosts(
@@ -188,16 +256,23 @@ export class FacebookSyncService {
       : ProductPostType.INFO;
   }
 
-  private applyPostToProduct(product: Product, post: FacebookPost): void {
+  private async applyPostToProduct(
+    product: Product,
+    post: FacebookPost,
+    migrateImages: boolean,
+  ): Promise<void> {
     const message = post.message!.trim();
 
     product.name = this.extractName(message);
     product.description = message;
     product.postType = this.classifyMessage(message);
-    product.images = this.extractImages(post);
+    if (migrateImages) {
+      product.images = await this.migrateImagesToSpaces(post);
+    }
     product.permalinkUrl = post.permalink_url ?? null;
     product.postedAt = post.created_time ? new Date(post.created_time) : null;
     product.lastSyncedAt = new Date();
+    product.stock = product.stock ?? 5; // Preserve existing stock if already set
 
     const price = this.extractPrice(message);
     if (price !== null) {
@@ -205,6 +280,58 @@ export class FacebookSyncService {
     } else if (product.price === undefined || product.price === null) {
       product.price = 0;
     }
+  }
+
+  // True when the product has no images yet, or still points at Facebook's
+  // own CDN (either never migrated, or synced before this feature existed).
+  private needsImageMigration(product: Product): boolean {
+    const images = product.images ?? [];
+    return (
+      images.length === 0 ||
+      images.some(
+        (url) => url.includes('fbcdn.net') || /\bfacebook\.com\b/.test(url),
+      )
+    );
+  }
+
+  // Downloads each Facebook-hosted image and re-uploads it to our own
+  // Spaces bucket, so product images don't depend on Facebook CDN links
+  // that can expire or change. Falls back to the original CDN URL for any
+  // image that fails to mirror, rather than silently dropping it.
+  private async migrateImagesToSpaces(post: FacebookPost): Promise<string[]> {
+    const sourceUrls = this.extractImages(post);
+
+    return Promise.all(
+      sourceUrls.map(async (src) => {
+        try {
+          const response = await axios.get(src, {
+            responseType: 'arraybuffer',
+            timeout: 15000,
+          });
+          const contentType: string =
+            response.headers['content-type'] || 'image/jpeg';
+          const extension = contentType.includes('png')
+            ? '.png'
+            : contentType.includes('webp')
+              ? '.webp'
+              : '.jpg';
+
+          return await uploadBufferToSpaces(
+            'facebook',
+            Buffer.from(response.data),
+            contentType,
+            extension,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Failed to mirror Facebook image to Spaces, keeping original CDN link (${src}): ${
+              error instanceof Error ? error.message : error
+            }`,
+          );
+          return src;
+        }
+      }),
+    );
   }
 
   // First non-empty line of the post, truncated to fit varchar(255)

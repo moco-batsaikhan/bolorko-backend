@@ -26,6 +26,8 @@ export enum OrderSource {
 
 export enum PaymentMethod {
   QPAY = 'QPAY',
+  STOREPAY = 'STOREPAY',
+  POCKET = 'POCKET',
   MANUAL = 'MANUAL',
 }
 

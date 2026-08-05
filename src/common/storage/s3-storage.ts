@@ -1,5 +1,10 @@
 import './env-loader';
-import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  ObjectCannedACL,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import multerS3 from 'multer-s3';
 import { randomBytes } from 'crypto';
 import { extname } from 'path';
@@ -10,10 +15,14 @@ const SPACES_BUCKET = process.env.SPACES_BUCKET as string;
 // uploads (banners/product/category images) are meant to be publicly
 // viewable.
 const SPACES_ACL = process.env.SPACES_ACL || 'public-read';
+const SPACES_ENDPOINT = normalizeEndpoint(
+  process.env.SPACES_ENDPOINT,
+  SPACES_BUCKET,
+);
 
 export const s3Client = new S3Client({
   region: process.env.SPACES_REGION,
-  endpoint: normalizeEndpoint(process.env.SPACES_ENDPOINT, SPACES_BUCKET),
+  endpoint: SPACES_ENDPOINT,
   // Spaces uses virtual-hosted-style URLs (bucket.region.digitaloceanspaces.com),
   // so path-style addressing is intentionally left off.
   credentials: {
@@ -58,7 +67,11 @@ export function createS3Storage(folder: string, allowedMimeTypes: RegExp) {
         cb(null, `${folder}/${randomName}${extname(file.originalname)}`);
       },
     }),
-    fileFilter: (req: unknown, file: Express.Multer.File, cb: MulterCallback) => {
+    fileFilter: (
+      req: unknown,
+      file: Express.Multer.File,
+      cb: MulterCallback,
+    ) => {
       if (!file.mimetype.match(allowedMimeTypes)) {
         cb(new Error('Only image files are allowed!'), false);
       } else {
@@ -69,6 +82,30 @@ export function createS3Storage(folder: string, allowedMimeTypes: RegExp) {
       fileSize: 5 * 1024 * 1024, // 5MB
     },
   };
+}
+
+// Server-side upload (no multer/HTTP request involved) — used to mirror
+// externally-hosted files (e.g. Facebook CDN images) into our own bucket.
+export async function uploadBufferToSpaces(
+  folder: string,
+  buffer: Buffer,
+  contentType: string,
+  extension: string,
+): Promise<string> {
+  const key = `${folder}/${randomBytes(16).toString('hex')}${extension}`;
+
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: SPACES_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+      ACL: SPACES_ACL as ObjectCannedACL,
+    }),
+  );
+
+  const host = SPACES_ENDPOINT?.replace(/^https?:\/\//, '');
+  return `https://${SPACES_BUCKET}.${host}/${key}`;
 }
 
 // Best-effort cleanup: never throws, so a failed delete doesn't fail the

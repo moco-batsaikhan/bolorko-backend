@@ -14,6 +14,8 @@ import {
   UsePipes,
   Query,
   Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -61,26 +63,31 @@ export class ProductController {
     private readonly facebookSyncService: FacebookSyncService,
   ) {}
 
-  // Facebook sync endpoint
+  // Facebook sync endpoint — starts the sync in the background and returns
+  // immediately, since a full sync can take longer than the platform's
+  // upstream request timeout. Progress/results land in the server logs.
   @Post('sync-facebook')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiBearerAuth('access-token')
   @Roles(UserRoleEnum.ADMIN)
+  @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
-    summary: 'Sync products from Facebook page posts via Graph API',
+    summary:
+      'Start a Facebook page post sync in the background (Graph API)',
   })
   @ApiResponse({
-    status: 201,
-    description: 'Sync completed: returns created/updated/skipped counts',
+    status: 202,
+    description: 'Sync started; runs in the background, results are logged',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({
     status: 503,
-    description: 'Facebook credentials missing or Graph API unavailable',
+    description:
+      'Facebook credentials missing or a sync is already in progress',
   })
   syncFacebook() {
-    return this.facebookSyncService.syncPosts();
+    return this.facebookSyncService.triggerSync();
   }
 
   // Cleanup endpoint
