@@ -90,7 +90,7 @@ export class PocketInvoice {
   @CreateDateColumn({ name: 'createdAt' })
   createdAt: Date;
 
-  @Column({ name: 'paidAt', nullable: true })
+  @Column({ name: 'paidAt', type: 'datetime', nullable: true })
   paidAt: Date | null;
 
   @ManyToOne(() => Order, { nullable: true })

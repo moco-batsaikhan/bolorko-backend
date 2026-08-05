@@ -59,7 +59,7 @@ export class StorepayLoan {
   @CreateDateColumn({ name: 'createdAt' })
   createdAt: Date;
 
-  @Column({ name: 'confirmedAt', nullable: true })
+  @Column({ name: 'confirmedAt', type: 'datetime', nullable: true })
   confirmedAt: Date | null;
 
   @ManyToOne(() => Order, { nullable: true })
