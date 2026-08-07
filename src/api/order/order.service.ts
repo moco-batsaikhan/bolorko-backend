@@ -351,11 +351,13 @@ export class OrderService {
     for (const item of items) {
       const product = await this.productService.findOne(item.productId);
 
-      if (product.stock < item.quantity) {
-        throw new BadRequestException(
-          `Insufficient stock for product ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}`,
-        );
-      }
+      // Stock balance is not checked when placing an order (disabled per
+      // request — orders should go through regardless of stock level)
+      // if (product.stock < item.quantity) {
+      //   throw new BadRequestException(
+      //     `Insufficient stock for product ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}`,
+      //   );
+      // }
 
       const overridePrice =
         'unitPrice' in item && item.unitPrice !== undefined

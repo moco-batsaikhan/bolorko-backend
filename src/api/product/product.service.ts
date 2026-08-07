@@ -98,9 +98,12 @@ export class ProductService {
       );
     }
 
-    // Zero-price products (e.g. Facebook INFO posts with no price) aren't
-    // purchasable — don't show them in the public listing
-    query.andWhere('product.price > 0');
+    // Zero-price PRODUCT ads aren't purchasable — don't show them in the
+    // public listing. INFO posts have no price by nature and stay visible.
+    query.andWhere(
+      '(product.price > 0 OR product.postType = :infoType)',
+      { infoType: ProductPostType.INFO },
+    );
 
     return await query.getMany();
   }
@@ -113,7 +116,9 @@ export class ProductService {
       .leftJoinAndSelect('ratings.user', 'ratingUser')
       .where('product.isFeatured = :isFeatured', { isFeatured: true })
       .andWhere('product.status = :status', { status: ProductStatus.ACTIVE })
-      .andWhere('product.price > 0')
+      .andWhere('(product.price > 0 OR product.postType = :infoType)', {
+        infoType: ProductPostType.INFO,
+      })
       .orderBy('product.createdAt', 'DESC')
       .getMany();
   }
@@ -132,7 +137,9 @@ export class ProductService {
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category')
       .where('product.categoryId = :categoryId', { categoryId })
-      .andWhere('product.price > 0')
+      .andWhere('(product.price > 0 OR product.postType = :infoType)', {
+        infoType: ProductPostType.INFO,
+      })
       .getMany();
   }
 
@@ -203,9 +210,12 @@ export class ProductService {
   }
 
   /**
-   * Atomic conditional UPDATE (stock - :quantity WHERE stock >= :quantity) so
-   * concurrent orders for the same product can't both pass a stale in-memory
-   * check and oversell. Pass `manager` to run as part of a caller's transaction.
+   * Conditional UPDATE (stock - :quantity WHERE id = :id). Pass `manager`
+   * to run as part of a caller's transaction.
+   *
+   * Stock balance is not checked/enforced when placing an order (disabled
+   * per request) — the `stock >= :quantity` gate that used to block
+   * decrementing below zero is removed, so stock can go negative.
    */
   async decreaseStock(
     id: number,
@@ -224,17 +234,11 @@ export class ProductService {
         status: () =>
           `CASE WHEN stock - :quantity <= 0 THEN '${ProductStatus.OUT_OF_STOCK}' ELSE status END`,
       })
-      .where('id = :id AND stock >= :quantity', { id, quantity })
+      .where('id = :id', { id, quantity })
       .execute();
 
     if (result.affected === 0) {
-      const product = await repo.findOne({ where: { id } });
-      if (!product) {
-        throw new NotFoundException(`Product with ID ${id} not found`);
-      }
-      throw new BadRequestException(
-        `Insufficient stock. Available: ${product.stock}, Requested: ${quantity}`,
-      );
+      throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
     return true;

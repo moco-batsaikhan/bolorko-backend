@@ -29,6 +29,7 @@ import {
 import { CreatePocketInvoiceDto } from './dto/pocket-invoice.dto';
 import type { Request, Response, NextFunction } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt.guard';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -40,9 +41,9 @@ export class PaymentController {
   ) {}
 
   @Post('qpay/invoice')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Create a QPay invoice (authenticated)' })
+  @ApiOperation({ summary: 'Create a QPay invoice (login optional)' })
   @ApiResponse({ status: 201, description: 'Invoice created successfully' })
   @ApiResponse({ status: 400, description: 'QPay request failed' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -70,7 +71,7 @@ export class PaymentController {
   // Legacy routes kept for backward compatibility
 
   @Post('invoice')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Create invoice (legacy, use POST qpay/invoice)' })
   createInvoice(@Body() invoiceDto: InvoiceDto, @Req() req: Request) {
@@ -118,9 +119,9 @@ export class PaymentController {
   // Storepay routes
 
   @Post('storepay/loan')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Create a Storepay loan (authenticated)' })
+  @ApiOperation({ summary: 'Create a Storepay loan (login optional)' })
   @ApiResponse({ status: 201, description: 'Loan created successfully' })
   @ApiResponse({ status: 400, description: 'Storepay request failed' })
   createStorepayLoan(
@@ -192,9 +193,9 @@ export class PaymentController {
   // Pocket Payment Gateway routes
 
   @Post('pocket/invoice')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Create a Pocket invoice (authenticated)' })
+  @ApiOperation({ summary: 'Create a Pocket invoice (login optional)' })
   @ApiResponse({ status: 201, description: 'Invoice created successfully' })
   @ApiResponse({ status: 400, description: 'Pocket request failed' })
   createPocketInvoice(
