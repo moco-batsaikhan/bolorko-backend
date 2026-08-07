@@ -13,6 +13,7 @@ import {
   ProductPostType,
   ProductStatus,
 } from './entities/product.entity';
+import { ProductCategory } from './entities/product-category.entity';
 import { uploadBufferToSpaces } from '../../common/storage/s3-storage';
 
 interface FacebookMedia {
@@ -49,6 +50,8 @@ export class FacebookSyncService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(ProductCategory)
+    private readonly productCategoryRepository: Repository<ProductCategory>,
     private readonly configService: ConfigService,
   ) {}
 
@@ -121,6 +124,7 @@ export class FacebookSyncService {
     this.syncInProgress = true;
     try {
       const posts = await this.fetchAllPosts(pageId, accessToken);
+      const categories = await this.productCategoryRepository.find();
 
       const result: FacebookSyncResult = {
         total: posts.length,
@@ -156,6 +160,10 @@ export class FacebookSyncService {
             stock: 0,
             status: ProductStatus.ACTIVE,
           });
+          const matchedCategory = this.matchCategory(post.message, categories);
+          if (matchedCategory) {
+            product.categoryId = matchedCategory.id;
+          }
           await this.applyPostToProduct(product, post, true);
           await this.productRepository.save(product);
           result.created++;
@@ -245,6 +253,111 @@ export class FacebookSyncService {
     await this.productRepository.save(synced);
 
     return { total: synced.length, products, info };
+  }
+
+  // Match already-synced Facebook posts to a category by hashtag, for posts
+  // that don't have one yet. Only fills in a category when a hashtag hits —
+  // never clears/overwrites an existing (e.g. manually set) categoryId.
+  async reclassifyCategories(): Promise<{
+    total: number;
+    categorized: number;
+    uncategorized: number;
+  }> {
+    const categories = await this.productCategoryRepository.find();
+    const synced = await this.productRepository.find({
+      where: { facebookPostId: Not(IsNull()) },
+    });
+
+    const toUpdate: Product[] = [];
+    for (const product of synced) {
+      const matchedCategory = this.matchCategory(
+        product.description ?? '',
+        categories,
+      );
+      if (matchedCategory && product.categoryId !== matchedCategory.id) {
+        product.categoryId = matchedCategory.id;
+        toUpdate.push(product);
+      }
+    }
+
+    if (toUpdate.length > 0) {
+      await this.productRepository.save(toUpdate);
+    }
+
+    return {
+      total: synced.length,
+      categorized: toUpdate.length,
+      uncategorized: synced.length - toUpdate.length,
+    };
+  }
+
+  // Category names don't contain '#'/spaces the way hashtags are written, so
+  // both sides are normalized (lowercased, spaces/punctuation stripped)
+  // before comparing, e.g. "Гар цүнх" ~ "#гарцүнх".
+  private normalizeHashtagToken(text: string): string {
+    return text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  }
+
+  private extractHashtags(message: string): string[] {
+    const matches = message.match(/#[^\s#]+/gu) ?? [];
+    return matches.map((tag) => this.normalizeHashtagToken(tag.slice(1)));
+  }
+
+  // Individual (Cyrillic-aware) words in the message, lowercased — used to
+  // check whether a category's name is mentioned in plain text, not just
+  // as a hashtag.
+  private extractWords(message: string): string[] {
+    return message.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  }
+
+  private matchCategory(
+    message: string,
+    categories: ProductCategory[],
+  ): ProductCategory | null {
+    const hashtags = this.extractHashtags(message);
+
+    // Pass 1: hashtag match (strongest, explicit signal)
+    if (hashtags.length > 0) {
+      for (const category of categories) {
+        const normalizedName = this.normalizeHashtagToken(category.name);
+        if (!normalizedName) {
+          continue;
+        }
+        if (
+          hashtags.some(
+            (tag: string) =>
+              tag === normalizedName || tag.includes(normalizedName),
+          )
+        ) {
+          return category;
+        }
+      }
+    }
+
+    // Pass 2: plain-text match — every word of a (possibly multi-word)
+    // category name must be a prefix of some word in the description, e.g.
+    // "Гар цүнх" needs both "гар"/"гар..." and "цүнх"/"цүнх..." present.
+    // Prefix (not exact) match because Mongolian nouns take case suffixes
+    // in running text (e.g. "чимэглэлийн", "цүнхтэй").
+    const words = this.extractWords(message);
+    if (words.length > 0) {
+      for (const category of categories) {
+        const nameWords = category.name
+          .toLowerCase()
+          .match(/[\p{L}\p{N}]+/gu);
+        if (!nameWords || nameWords.length === 0) {
+          continue;
+        }
+        const allPresent = nameWords.every((nameWord) =>
+          words.some((word) => word.startsWith(nameWord)),
+        );
+        if (allPresent) {
+          return category;
+        }
+      }
+    }
+
+    return null;
   }
 
   // A post is a product ad when it mentions a price or carries a "зар" hashtag

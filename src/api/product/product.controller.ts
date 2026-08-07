@@ -129,6 +129,26 @@ export class ProductController {
     return this.facebookSyncService.reclassifyExisting();
   }
 
+  // Categorize existing Facebook-synced records by hashtag
+  @Post('classify-categories')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth('access-token')
+  @Roles(UserRoleEnum.ADMIN)
+  @ApiOperation({
+    summary:
+      'Assign a category to existing Facebook-synced records based on hashtags in their text',
+  })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Categorization completed: returns total/categorized/uncategorized counts',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  classifyCategories() {
+    return this.facebookSyncService.reclassifyCategories();
+  }
+
   // Product endpoints
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
