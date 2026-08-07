@@ -60,8 +60,20 @@ export class CreateOrderDto {
   @Type(() => CreateOrderItemDto)
   orderItems: CreateOrderItemDto[];
 
-  @ApiProperty({ description: 'Shipping address', type: ShippingAddressDto })
+  @ApiProperty({
+    description: 'Shipping address',
+    type: ShippingAddressDto,
+    required: false,
+  })
+  @IsOptional()
   @ValidateNested()
   @Type(() => ShippingAddressDto)
-  shippingAddress: ShippingAddressDto;
+  shippingAddress?: ShippingAddressDto;
+
+  @ApiProperty({
+    description: 'Customer phone number (used to reach the buyer)',
+    example: '99112233',
+  })
+  @IsString()
+  phone: string;
 }

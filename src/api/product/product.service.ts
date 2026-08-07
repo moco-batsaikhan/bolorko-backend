@@ -98,15 +98,24 @@ export class ProductService {
       );
     }
 
+    // Zero-price products (e.g. Facebook INFO posts with no price) aren't
+    // purchasable — don't show them in the public listing
+    query.andWhere('product.price > 0');
+
     return await query.getMany();
   }
 
   async findFeatured(): Promise<Product[]> {
-    return await this.productRepository.find({
-      where: { isFeatured: true, status: ProductStatus.ACTIVE },
-      relations: ['category', 'ratings', 'ratings.user'],
-      order: { createdAt: 'DESC' },
-    });
+    return await this.productRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.ratings', 'ratings')
+      .leftJoinAndSelect('ratings.user', 'ratingUser')
+      .where('product.isFeatured = :isFeatured', { isFeatured: true })
+      .andWhere('product.status = :status', { status: ProductStatus.ACTIVE })
+      .andWhere('product.price > 0')
+      .orderBy('product.createdAt', 'DESC')
+      .getMany();
   }
 
   async setFeatured(id: number, isFeatured: boolean): Promise<Product> {
@@ -119,10 +128,12 @@ export class ProductService {
   }
 
   async findByCategory(categoryId: number): Promise<Product[]> {
-    return await this.productRepository.find({
-      where: { categoryId },
-      relations: ['category'],
-    });
+    return await this.productRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .where('product.categoryId = :categoryId', { categoryId })
+      .andWhere('product.price > 0')
+      .getMany();
   }
 
   async findOne(id: number): Promise<Product> {

@@ -69,6 +69,7 @@ export class OrderService {
         paymentStatus: OrderPaymentStatus.UNPAID,
         status: OrderStatus.PENDING,
         total: total,
+        phone: createOrderDto.phone,
         shippingAddress: createOrderDto.shippingAddress ?? null,
       });
 
