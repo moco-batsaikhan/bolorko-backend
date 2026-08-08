@@ -103,7 +103,7 @@ export class Product {
     nullable: true,
   })
   @JoinColumn({ name: 'categoryId' })
-  category: ProductCategory;
+  category: ProductCategory | null;
 
   @OneToMany(() => ProductRating, (rating) => rating.product)
   ratings: ProductRating[];

@@ -191,12 +191,21 @@ export class ProductService {
   ): Promise<Product> {
     const product = await this.findOne(id);
 
-    // If category is being updated, verify it exists
+    // findOne() above loads the `category` relation. If we only assign the
+    // new categoryId below without also updating `category`, TypeORM can
+    // re-derive the FK from the now-stale `category` relation object on
+    // save and silently discard the categoryId change. Resolve (and
+    // verify) the new category here so both stay in sync.
     if (
-      updateProductDto.categoryId &&
+      'categoryId' in updateProductDto &&
       updateProductDto.categoryId !== product.categoryId
     ) {
-      await this.productCategoryService.findOne(updateProductDto.categoryId);
+      product.category =
+        updateProductDto.categoryId == null
+          ? null
+          : await this.productCategoryService.findOne(
+              updateProductDto.categoryId,
+            );
     }
 
     Object.assign(product, updateProductDto);
