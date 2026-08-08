@@ -42,6 +42,16 @@ export class CreateProductCategoryDto {
   image?: string;
 
   @ApiProperty({
+    description:
+      'Hashtag (without "#") used to match this category during Facebook post sync, e.g. "гарцүнх" for posts tagged "#гарцүнх". Falls back to matching on name when not set.',
+    example: 'гарцүнх',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  hashtagName?: string;
+
+  @ApiProperty({
     description: 'Whether the category is featured',
     example: false,
     required: false,

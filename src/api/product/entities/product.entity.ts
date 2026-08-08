@@ -77,6 +77,11 @@ export class Product {
   @Column({ type: 'json', nullable: true })
   sizes: string[] | null;
 
+  // False for products that can't be paid for via installment services
+  // (Storepay/Pocket) — set by admin
+  @Column({ default: true })
+  installmentPaymentAllowed: boolean;
+
   // Facebook sync fields
   @Column({ type: 'varchar', unique: true, nullable: true })
   facebookPostId: string | null;

@@ -18,7 +18,7 @@ export class User {
   name: string;
 
   @Column({ unique: true })
-  email: string;
+  phone: string;
 
   @Column()
   password: string;
@@ -34,9 +34,9 @@ export class User {
   role: UserRole;
 
   // Methods for profile updates
-  updateProfile(name: string, email: string): void {
+  updateProfile(name: string, phone: string): void {
     this.name = name;
-    this.email = email;
+    this.phone = phone;
   }
 
   changePassword(newHashedPassword: string): void {

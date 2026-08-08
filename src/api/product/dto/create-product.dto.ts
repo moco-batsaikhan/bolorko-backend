@@ -130,4 +130,20 @@ export class CreateProductDto {
   })
   @IsOptional()
   sizes?: string[];
+
+  @ApiProperty({
+    description:
+      'Whether this product can be paid for via installment services (Storepay/Pocket). Defaults to true.',
+    example: true,
+    required: false,
+  })
+  @Transform(({ value }) => {
+    if (typeof value === 'boolean') return value;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  @IsOptional()
+  installmentPaymentAllowed?: boolean;
 }

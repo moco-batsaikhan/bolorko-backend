@@ -1,10 +1,10 @@
 import {
   IsString,
-  IsEmail,
   IsOptional,
   IsEnum,
   MinLength,
   IsNumber,
+  Matches,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRoleEnum } from '../entities/user-role.entity';
@@ -20,13 +20,13 @@ export class AdminUpdateUserDto {
   name?: string;
 
   @ApiProperty({
-    description: 'User email',
-    example: 'john.doe@example.com',
+    description: 'User phone number (8 digits)',
+    example: '99112233',
     required: false,
   })
-  @IsEmail()
+  @Matches(/^[0-9]{8}$/, { message: 'Утасны дугаар 8 оронтой байх ёстой' })
   @IsOptional()
-  email?: string;
+  phone?: string;
 
   @ApiProperty({
     description: 'User role',

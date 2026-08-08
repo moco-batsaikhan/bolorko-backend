@@ -355,7 +355,31 @@ export class FacebookSyncService {
   ): ProductCategory | null {
     const hashtags = this.extractHashtags(message);
 
-    // Pass 1: hashtag match (strongest, explicit signal)
+    // Pass 0: admin-defined hashtagName — explicit mapping takes priority
+    // over the name-derived matching below.
+    if (hashtags.length > 0) {
+      for (const category of categories) {
+        if (!category.hashtagName) {
+          continue;
+        }
+        const normalizedHashtagName = this.normalizeHashtagToken(
+          category.hashtagName,
+        );
+        if (
+          normalizedHashtagName &&
+          hashtags.some(
+            (tag: string) =>
+              tag === normalizedHashtagName ||
+              tag.includes(normalizedHashtagName),
+          )
+        ) {
+          return category;
+        }
+      }
+    }
+
+    // Pass 1: hashtag match derived from category name (strongest signal
+    // when hashtagName isn't set)
     if (hashtags.length > 0) {
       for (const category of categories) {
         const normalizedName = this.normalizeHashtagToken(category.name);

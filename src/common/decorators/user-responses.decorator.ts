@@ -33,7 +33,7 @@ export function ApiUserProfileUpdateResponse() {
     }),
     ApiResponse({
       status: 409,
-      description: 'Email already exists',
+      description: 'Phone number already exists',
     }),
   );
 }

@@ -146,6 +146,29 @@ export class StorepayService {
     };
   }
 
+  // Blocks Storepay loan creation when the order contains a product an
+  // admin has marked as not payable via installment services
+  private async assertInstallmentAllowed(orderId: number): Promise<void> {
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId },
+      relations: ['orderItems', 'orderItems.product'],
+    });
+    if (!order) {
+      return;
+    }
+
+    const blockedNames = (order.orderItems ?? [])
+      .map((item) => item.product)
+      .filter((product) => product && !product.installmentPaymentAllowed)
+      .map((product) => product.name);
+
+    if (blockedNames.length > 0) {
+      throw new BadRequestException(
+        `Дараах бараанд Storepay үйлчилгээ ашиглах боломжгүй: ${blockedNames.join(', ')}`,
+      );
+    }
+  }
+
   private handleAxiosError(err: any, action: string): never {
     if (axios.isAxiosError(err)) {
       const status = err.response?.status;
@@ -168,6 +191,10 @@ export class StorepayService {
       throw new BadRequestException(
         'storeId is required (or configure STOREPAY_STORE_ID)',
       );
+    }
+
+    if (dto.orderId) {
+      await this.assertInstallmentAllowed(dto.orderId);
     }
 
     const requestId = nanoid();

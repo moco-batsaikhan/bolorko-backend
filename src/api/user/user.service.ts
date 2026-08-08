@@ -44,7 +44,7 @@ export class UserService {
 
     const user = this.userRepo.create({
       name: dto.name,
-      email: dto.email,
+      phone: dto.phone,
       password: hashed,
       roleId: roleId,
     });
@@ -79,9 +79,9 @@ export class UserService {
     });
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByPhone(phone: string): Promise<User | null> {
     return this.userRepo.findOne({
-      where: { email },
+      where: { phone },
       relations: ['role'],
     });
   }
@@ -99,18 +99,18 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    // Check if email is being updated and is unique
-    if (updateDto.email && updateDto.email !== user.email) {
-      const existingUser = await this.findByEmail(updateDto.email);
+    // Check if phone is being updated and is unique
+    if (updateDto.phone && updateDto.phone !== user.phone) {
+      const existingUser = await this.findByPhone(updateDto.phone);
       if (existingUser) {
-        throw new ConflictException('Email already exists');
+        throw new ConflictException('Phone number already exists');
       }
     }
 
-    if (updateDto.name || updateDto.email) {
+    if (updateDto.name || updateDto.phone) {
       user.updateProfile(
         updateDto.name || user.name,
-        updateDto.email || user.email,
+        updateDto.phone || user.phone,
       );
     }
 
@@ -187,7 +187,7 @@ export class UserService {
   }
 
   async createAdminUser(
-    email: string,
+    phone: string,
     password: string,
     name: string,
   ): Promise<User> {
@@ -196,12 +196,12 @@ export class UserService {
 
     // Check if admin user already exists
     const existingAdmin = await this.userRepo.findOne({
-      where: { email },
+      where: { phone },
       relations: ['role'],
     });
 
     if (existingAdmin) {
-      throw new ConflictException('User with this email already exists');
+      throw new ConflictException('User with this phone number already exists');
     }
 
     // Get admin role
@@ -219,7 +219,7 @@ export class UserService {
     // Create admin user
     const adminUser = this.userRepo.create({
       name,
-      email,
+      phone,
       password: hashedPassword,
       roleId: adminRole.id,
     });
@@ -237,7 +237,7 @@ export class UserService {
     userId: number,
     updateData: {
       name?: string;
-      email?: string;
+      phone?: string;
       role?: UserRoleEnum;
     },
   ): Promise<User> {
@@ -246,8 +246,8 @@ export class UserService {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    if (updateData.email) {
-      user.email = updateData.email;
+    if (updateData.phone) {
+      user.phone = updateData.phone;
     }
 
     if (updateData.name) {
@@ -284,7 +284,7 @@ export class UserService {
       .update(User)
       .set({
         name: user.name,
-        email: user.email,
+        phone: user.phone,
         roleId: user.roleId,
       })
       .where('id = :id', { id: userId })

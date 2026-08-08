@@ -19,7 +19,7 @@ export class AuthResponseDto {
     properties: {
       id: { type: 'number', example: 1 },
       name: { type: 'string', example: 'User' },
-      email: { type: 'string', example: 'user@example.com' },
+      phone: { type: 'string', example: '99112233' },
       role: { type: 'string', example: 'USER' },
       createdAt: { type: 'string', example: '2025-12-01T10:00:00Z' },
     },
@@ -27,7 +27,7 @@ export class AuthResponseDto {
   user: {
     id: number;
     name: string;
-    email: string;
+    phone: string;
     role: string;
     createdAt: string;
   };

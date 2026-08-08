@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsOptional, Matches } from 'class-validator';
 
 export class UpdateProfileDto {
   @ApiProperty({
@@ -11,12 +11,12 @@ export class UpdateProfileDto {
   name?: string;
 
   @ApiProperty({
-    description: 'User email address',
-    example: 'user@example.com',
+    description: 'User phone number (8 digits)',
+    example: '99112233',
   })
   @IsOptional()
-  @IsEmail()
-  email?: string;
+  @Matches(/^[0-9]{8}$/, { message: 'Утасны дугаар 8 оронтой байх ёстой' })
+  phone?: string;
 
   @ApiProperty({
     description: 'Role ID of the user',

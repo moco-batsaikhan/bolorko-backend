@@ -48,7 +48,7 @@ export class UserController {
         properties: {
           id: { type: 'number', example: 1 },
           name: { type: 'string', example: 'User' },
-          email: { type: 'string', example: 'user@example.com' },
+          phone: { type: 'string', example: '99112233' },
           role: { type: 'string', example: 'USER' },
           createdAt: { type: 'string', example: '2023-12-01T10:00:00Z' },
         },
@@ -72,7 +72,7 @@ export class UserController {
       properties: {
         id: { type: 'number', example: 1 },
         name: { type: 'string', example: 'User' },
-        email: { type: 'string', example: 'user@example.com' },
+        phone: { type: 'string', example: '99112233' },
         role: { type: 'string', example: 'USER' },
         createdAt: { type: 'string', example: '2023-12-01T10:00:00Z' },
       },
@@ -97,7 +97,7 @@ export class UserController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Email already exists',
+    description: 'Phone number already exists',
   })
   async updateProfile(
     @Request() req,
@@ -164,7 +164,7 @@ export class UserController {
       properties: {
         id: { type: 'number', example: 1 },
         name: { type: 'string', example: 'Updated Name' },
-        email: { type: 'string', example: 'updated@example.com' },
+        phone: { type: 'string', example: '99112244' },
         createdAt: { type: 'string', example: '2023-12-01T10:00:00Z' },
         role: {
           type: 'object',
@@ -182,7 +182,7 @@ export class UserController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Email already exists',
+    description: 'Phone number already exists',
   })
   @ApiResponse({
     status: 403,
@@ -243,12 +243,12 @@ export class UserController {
   })
   @ApiResponse({
     status: 409,
-    description: 'User with this email already exists',
+    description: 'User with this phone number already exists',
   })
   @ApiBody({ type: CreateAdminDto })
   async createAdmin(@Body() createAdminDto: CreateAdminDto) {
     return this.userService.createAdminUser(
-      createAdminDto.email,
+      createAdminDto.phone,
       createAdminDto.password,
       createAdminDto.name,
     );

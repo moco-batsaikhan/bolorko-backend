@@ -1,4 +1,4 @@
-import { IsString, IsEmail, MinLength } from 'class-validator';
+import { IsString, MinLength, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAdminDto {
@@ -10,11 +10,11 @@ export class CreateAdminDto {
   name: string;
 
   @ApiProperty({
-    description: 'Admin email',
-    example: 'admin@example.com',
+    description: 'Admin phone number (8 digits)',
+    example: '99112233',
   })
-  @IsEmail()
-  email: string;
+  @Matches(/^[0-9]{8}$/, { message: 'Утасны дугаар 8 оронтой байх ёстой' })
+  phone: string;
 
   @ApiProperty({
     description: 'Admin password',

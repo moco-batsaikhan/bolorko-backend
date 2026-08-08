@@ -177,6 +177,29 @@ export class PocketService {
     throw new BadRequestException(err?.message ?? err);
   }
 
+  // Blocks Pocket invoice creation when the order contains a product an
+  // admin has marked as not payable via installment services
+  private async assertInstallmentAllowed(orderId: number): Promise<void> {
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId },
+      relations: ['orderItems', 'orderItems.product'],
+    });
+    if (!order) {
+      return;
+    }
+
+    const blockedNames = (order.orderItems ?? [])
+      .map((item) => item.product)
+      .filter((product) => product && !product.installmentPaymentAllowed)
+      .map((product) => product.name);
+
+    if (blockedNames.length > 0) {
+      throw new BadRequestException(
+        `Дараах бараанд Pocket үйлчилгээ ашиглах боломжгүй: ${blockedNames.join(', ')}`,
+      );
+    }
+  }
+
   /**
    * 3. Нэхэмжлэх үүсгэх (POST /v2/invoicing/generate-invoice)
    */
@@ -191,6 +214,10 @@ export class PocketService {
       throw new BadRequestException(
         'terminalId is required (or configure POCKET_TERMINAL_ID)',
       );
+    }
+
+    if (dto.orderId) {
+      await this.assertInstallmentAllowed(dto.orderId);
     }
 
     const orderNumber = dto.orderNumber ?? nanoid();

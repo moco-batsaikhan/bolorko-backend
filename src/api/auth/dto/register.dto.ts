@@ -1,10 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsEmail,
   IsNotEmpty,
   MinLength,
   IsOptional,
   IsEnum,
+  Matches,
 } from 'class-validator';
 import { UserRoleEnum } from '../../user/entities/user-role.entity';
 
@@ -17,11 +17,11 @@ export class RegisterDto {
   name: string;
 
   @ApiProperty({
-    description: 'User email address',
-    example: 'user@example.com',
+    description: 'User phone number (8 digits)',
+    example: '99112233',
   })
-  @IsEmail()
-  email: string;
+  @Matches(/^[0-9]{8}$/, { message: 'Утасны дугаар 8 оронтой байх ёстой' })
+  phone: string;
 
   @ApiProperty({
     description: 'User password (minimum 6 characters)',

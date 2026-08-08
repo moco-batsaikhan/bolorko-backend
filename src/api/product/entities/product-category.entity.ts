@@ -25,6 +25,12 @@ export class ProductCategory {
   @Column({ default: false })
   isFeatured: boolean;
 
+  // Explicit hashtag (without '#') used to match this category during
+  // Facebook post sync — e.g. "гарцүнх" for a post tagged "#гарцүнх".
+  // Falls back to matching on `name` when not set.
+  @Column({ type: 'varchar', nullable: true })
+  hashtagName: string | null;
+
   // Null for main categories; set for sub categories
   @Column({ type: 'int', nullable: true })
   parentId: number | null;

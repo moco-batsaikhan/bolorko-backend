@@ -63,7 +63,7 @@ describe('AuthController', () => {
     it('should register a new user', async () => {
       const registerDto = {
         name: 'Test User',
-        email: 'test@example.com',
+        phone: '99112233',
         password: 'password123',
       };
 
@@ -73,7 +73,7 @@ describe('AuthController', () => {
         user: {
           id: 1,
           name: 'Test User',
-          email: 'test@example.com',
+          phone: '99112233',
           role: 'USER',
           createdAt: new Date(),
         },
@@ -90,7 +90,7 @@ describe('AuthController', () => {
   describe('login', () => {
     it('should login a user', async () => {
       const loginDto = {
-        email: 'test@example.com',
+        phone: '99112233',
         password: 'password123',
       };
 
@@ -100,7 +100,7 @@ describe('AuthController', () => {
         user: {
           id: 1,
           name: 'Test User',
-          email: 'test@example.com',
+          phone: '99112233',
           role: 'USER',
           createdAt: new Date(),
         },

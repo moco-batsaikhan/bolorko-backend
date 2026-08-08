@@ -16,8 +16,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, pass: string) {
-    const user = await this.userService.findByEmail(email);
+  async validateUser(phone: string, pass: string) {
+    const user = await this.userService.findByPhone(phone);
     if (user && (await bcrypt.compare(pass, user.password))) {
       const { password, ...result } = user;
       return result;
@@ -26,14 +26,14 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
+    const user = await this.validateUser(loginDto.phone, loginDto.password);
     return this.generateTokens(user);
   }
 
   async register(registerDto: RegisterDto) {
-    const existingUser = await this.userService.findByEmail(registerDto.email);
+    const existingUser = await this.userService.findByPhone(registerDto.phone);
     if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+      throw new ConflictException('User with this phone number already exists');
     }
 
     const newUser = await this.userService.create(registerDto);
@@ -64,7 +64,7 @@ export class AuthService {
 
   private generateTokens(user: any) {
     const payload = {
-      email: user.email,
+      phone: user.phone,
       sub: user.id,
       role: user.role?.role || 'USER',
     };
@@ -82,7 +82,7 @@ export class AuthService {
       user: {
         id: user.id,
         name: user.name,
-        email: user.email,
+        phone: user.phone,
         role: user.role?.role || 'USER',
         createdAt: user.createdAt,
       },
