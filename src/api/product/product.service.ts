@@ -105,6 +105,11 @@ export class ProductService {
       { infoType: ProductPostType.INFO },
     );
 
+    // Inactive products (deactivated by admin) shouldn't appear on the site
+    query.andWhere('product.status != :inactiveStatus', {
+      inactiveStatus: ProductStatus.INACTIVE,
+    });
+
     return await query.getMany();
   }
 
@@ -139,6 +144,9 @@ export class ProductService {
       .where('product.categoryId = :categoryId', { categoryId })
       .andWhere('(product.price > 0 OR product.postType = :infoType)', {
         infoType: ProductPostType.INFO,
+      })
+      .andWhere('product.status != :inactiveStatus', {
+        inactiveStatus: ProductStatus.INACTIVE,
       })
       .getMany();
   }
