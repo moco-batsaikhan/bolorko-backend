@@ -246,14 +246,29 @@ export class ProductController {
     required: false,
     description: 'Search text matched against product name and description',
   })
+  @ApiQuery({
+    name: 'page',
+    type: Number,
+    required: false,
+    description:
+      'Page number (1-based). Omit both page and limit to get the full list (default, backward-compatible).',
+  })
+  @ApiQuery({
+    name: 'limit',
+    type: Number,
+    required: false,
+    description: 'Items per page. Omit both page and limit to get the full list.',
+  })
   @ApiResponse({ status: 200, description: 'Products retrieved successfully' })
   findAll(
     @Query('type') type?: string,
     @Query('categoryId', new ParseIntPipe({ optional: true }))
     categoryId?: number,
     @Query('search') search?: string,
+    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
   ) {
-    return this.productService.findAll(type, categoryId, search);
+    return this.productService.findAll(type, categoryId, search, page, limit);
   }
 
   @Get('featured')

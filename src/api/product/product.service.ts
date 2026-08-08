@@ -21,6 +21,13 @@ import { CartItem } from '../cart/entities/cart-item.entity';
 import { OrderItem } from '../order/entities/order-item.entity';
 import { deleteS3ObjectByUrl } from '../../common/storage/s3-storage';
 
+export interface PaginatedProducts {
+  data: Product[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
 @Injectable()
 export class ProductService {
   constructor(
@@ -59,7 +66,9 @@ export class ProductService {
     postType?: string,
     categoryId?: number,
     search?: string,
-  ): Promise<Product[]> {
+    page?: number,
+    limit?: number,
+  ): Promise<Product[] | PaginatedProducts> {
     if (
       postType &&
       !Object.values(ProductPostType).includes(postType as ProductPostType)
@@ -110,7 +119,19 @@ export class ProductService {
       inactiveStatus: ProductStatus.INACTIVE,
     });
 
-    return await query.getMany();
+    // Backward-compatible: without page/limit, return the full array as
+    // before (existing callers, e.g. the admin page, are unaffected)
+    if (!page || !limit) {
+      return await query.getMany();
+    }
+
+    const [data, total] = await query
+      .orderBy('product.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return { data, total, page, pages: Math.ceil(total / limit) };
   }
 
   async findFeatured(): Promise<Product[]> {
