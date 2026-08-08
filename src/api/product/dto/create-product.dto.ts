@@ -65,14 +65,22 @@ export class CreateProductDto {
   stock: number;
 
   @ApiProperty({
-    description: 'Category ID',
+    description:
+      'Category ID. Send 0, "0", or an empty string to clear the category. Omit the field entirely to leave it unchanged.',
     example: 1,
     required: false,
+    nullable: true,
   })
-  @Transform(({ value }) => (value ? parseInt(value) : undefined))
+  @Transform(({ value }) => {
+    if (value === undefined) return undefined;
+    if (value === null || value === '' || value === 0 || value === '0') {
+      return null;
+    }
+    return parseInt(value);
+  })
   @IsNumber()
   @IsOptional()
-  categoryId?: number;
+  categoryId?: number | null;
 
   @ApiProperty({
     description: 'Product status',

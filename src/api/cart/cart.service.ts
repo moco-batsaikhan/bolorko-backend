@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cart } from './entities/cart.entity';
@@ -10,6 +6,13 @@ import { CartItem } from './entities/cart-item.entity';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { ProductService } from '../product/product.service';
+
+export interface CartTotal {
+  totalItems: number;
+  totalPrice: number;
+  discountAmount: number;
+  finalPrice: number;
+}
 
 @Injectable()
 export class CartService {
@@ -39,14 +42,17 @@ export class CartService {
     const { productId, quantity, selectedColor, selectedSize } =
       addToCartDto;
 
-    // Verify product exists and has sufficient stock
-    const product = await this.productService.findOne(productId);
+    // Verify product exists
+    await this.productService.findOne(productId);
 
-    if (product.stock < quantity) {
-      throw new BadRequestException(
-        `Insufficient stock. Available: ${product.stock}, Requested: ${quantity}`,
-      );
-    }
+    // Stock balance is not checked when adding to cart (disabled per
+    // request, matching order creation — carts/orders should go through
+    // regardless of stock level)
+    // if (product.stock < quantity) {
+    //   throw new BadRequestException(
+    //     `Insufficient stock. Available: ${product.stock}, Requested: ${quantity}`,
+    //   );
+    // }
 
     const cart = await this.getOrCreateCart(userId);
 
@@ -60,14 +66,8 @@ export class CartService {
     );
 
     if (existingItem) {
-      // Update quantity
+      // Update quantity (stock balance not checked — see note above)
       const newQuantity = existingItem.quantity + quantity;
-
-      if (product.stock < newQuantity) {
-        throw new BadRequestException(
-          `Insufficient stock. Available: ${product.stock}, Total requested: ${newQuantity}`,
-        );
-      }
 
       existingItem.quantity = newQuantity;
       await this.cartItemRepository.save(existingItem);
@@ -112,14 +112,14 @@ export class CartService {
       throw new NotFoundException(`Cart item with ID ${itemId} not found`);
     }
 
-    // Verify stock availability
-    const product = await this.productService.findOne(cartItem.productId);
-
-    if (product.stock < updateCartItemDto.quantity) {
-      throw new BadRequestException(
-        `Insufficient stock. Available: ${product.stock}, Requested: ${updateCartItemDto.quantity}`,
-      );
-    }
+    // Stock balance is not checked when updating a cart item (disabled per
+    // request, matching order creation)
+    // const product = await this.productService.findOne(cartItem.productId);
+    // if (product.stock < updateCartItemDto.quantity) {
+    //   throw new BadRequestException(
+    //     `Insufficient stock. Available: ${product.stock}, Requested: ${updateCartItemDto.quantity}`,
+    //   );
+    // }
 
     cartItem.quantity = updateCartItemDto.quantity;
     await this.cartItemRepository.save(cartItem);
@@ -151,13 +151,24 @@ export class CartService {
     return await this.getCartByUserId(userId);
   }
 
-  async getCartTotal(userId: number): Promise<number> {
+  async getCartTotal(userId: number): Promise<CartTotal> {
     const cart = await this.getCartByUserId(userId);
 
-    return (
-      cart.cartItems?.reduce((total, item) => {
-        return total + item.quantity * item.product.getEffectivePrice();
-      }, 0) || 0
+    const totals = (cart.cartItems ?? []).reduce(
+      (acc, item) => {
+        acc.totalItems += item.quantity;
+        acc.totalPrice += item.quantity * Number(item.product.price);
+        acc.finalPrice += item.quantity * item.product.getEffectivePrice();
+        return acc;
+      },
+      { totalItems: 0, totalPrice: 0, finalPrice: 0 },
     );
+
+    return {
+      totalItems: totals.totalItems,
+      totalPrice: totals.totalPrice,
+      discountAmount: totals.totalPrice - totals.finalPrice,
+      finalPrice: totals.finalPrice,
+    };
   }
 }

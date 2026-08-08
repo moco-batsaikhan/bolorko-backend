@@ -202,15 +202,19 @@ export class ProductService {
     Object.assign(product, updateProductDto);
     this.validateSalePrice(product);
 
-    // Update status based on stock
-    if (product.stock <= 0) {
-      product.status = ProductStatus.OUT_OF_STOCK;
-    } else if (
-      product.status === ProductStatus.OUT_OF_STOCK &&
-      product.stock > 0
-    ) {
-      product.status = ProductStatus.ACTIVE;
-    }
+    // Status is not auto-overridden based on stock on update (disabled per
+    // request — stock enforcement is disabled elsewhere too, and this used
+    // to silently replace whatever status the admin just picked in the edit
+    // form with OUT_OF_STOCK, a value the admin frontend's status dropdown
+    // doesn't even offer).
+    // if (product.stock <= 0) {
+    //   product.status = ProductStatus.OUT_OF_STOCK;
+    // } else if (
+    //   product.status === ProductStatus.OUT_OF_STOCK &&
+    //   product.stock > 0
+    // ) {
+    //   product.status = ProductStatus.ACTIVE;
+    // }
 
     await this.productRepository.save(product);
 

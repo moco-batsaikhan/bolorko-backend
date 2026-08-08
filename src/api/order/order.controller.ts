@@ -21,7 +21,6 @@ import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRoleEnum } from '../user/entities/user-role.entity';
@@ -33,15 +32,13 @@ export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Post()
-  @UseGuards(OptionalJwtAuthGuard)
-  @ApiOperation({
-    summary:
-      'Create a new order (guest checkout supported — login is optional)',
-  })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Create a new order (login required)' })
   @ApiResponse({ status: 201, description: 'Order created successfully' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   create(@Body() createOrderDto: CreateOrderDto, @Req() req: Request) {
-    const userId = (req as any).user?.id ?? null;
+    const userId = (req as any).user.id;
     return this.orderService.create(createOrderDto, userId);
   }
 

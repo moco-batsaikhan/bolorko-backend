@@ -48,11 +48,11 @@ export class OrderService {
 
   /**
    * Website order: created as PENDING/UNPAID with a QPay invoice attached.
-   * `userId` is null for guest checkout (login is optional for this endpoint).
+   * Login is required — this endpoint no longer supports guest checkout.
    */
   async create(
     createOrderDto: CreateOrderDto,
-    userId: number | null,
+    userId: number,
   ): Promise<{ order: Order; invoice: any }> {
     const orderId = await this.dataSource.transaction(async (manager) => {
       const itemsData = await this.prepareItems(createOrderDto.orderItems);
