@@ -25,6 +25,24 @@ export class CreateOrderItemDto {
   @IsInt()
   @Min(1)
   quantity: number;
+
+  @ApiProperty({
+    description: 'Selected color, if the product has a colors list',
+    example: 'Хөх',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  selectedColor?: string;
+
+  @ApiProperty({
+    description: 'Selected size, if the product has a sizes list',
+    example: 'M',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  selectedSize?: string;
 }
 
 export class ShippingAddressDto {

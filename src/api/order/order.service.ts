@@ -338,14 +338,30 @@ export class OrderService {
    * Validate products/stock and resolve unit prices for order items
    */
   private async prepareItems(
-    items: Array<{ productId: number; quantity: number } | ManualOrderItemDto>,
+    items: Array<
+      | {
+          productId: number;
+          quantity: number;
+          selectedColor?: string;
+          selectedSize?: string;
+        }
+      | ManualOrderItemDto
+    >,
   ): Promise<
-    Array<{ productId: number; quantity: number; unitPrice: number }>
+    Array<{
+      productId: number;
+      quantity: number;
+      unitPrice: number;
+      selectedColor: string | null;
+      selectedSize: string | null;
+    }>
   > {
     const itemsData: Array<{
       productId: number;
       quantity: number;
       unitPrice: number;
+      selectedColor: string | null;
+      selectedSize: string | null;
     }> = [];
 
     for (const item of items) {
@@ -368,6 +384,8 @@ export class OrderService {
         productId: item.productId,
         quantity: item.quantity,
         unitPrice: overridePrice ?? product.getEffectivePrice(),
+        selectedColor: item.selectedColor ?? null,
+        selectedSize: item.selectedSize ?? null,
       });
     }
 
@@ -380,6 +398,8 @@ export class OrderService {
       productId: number;
       quantity: number;
       unitPrice: number;
+      selectedColor: string | null;
+      selectedSize: string | null;
     }>,
     manager: EntityManager,
   ): Promise<void> {
@@ -399,6 +419,8 @@ export class OrderService {
           productId: itemData.productId,
           quantity: itemData.quantity,
           unitPrice: itemData.unitPrice,
+          selectedColor: itemData.selectedColor,
+          selectedSize: itemData.selectedSize,
         }),
       );
     }

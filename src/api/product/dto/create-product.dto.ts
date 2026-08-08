@@ -104,4 +104,22 @@ export class CreateProductDto {
   @IsBoolean()
   @IsOptional()
   isFeatured?: boolean;
+
+  @ApiProperty({
+    description: 'Available colors',
+    example: ['Хөх', 'Улаан'],
+    required: false,
+    type: [String],
+  })
+  @IsOptional()
+  colors?: string[];
+
+  @ApiProperty({
+    description: 'Available sizes',
+    example: ['S', 'M', 'L'],
+    required: false,
+    type: [String],
+  })
+  @IsOptional()
+  sizes?: string[];
 }

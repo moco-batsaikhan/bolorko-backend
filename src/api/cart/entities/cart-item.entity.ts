@@ -23,6 +23,13 @@ export class CartItem {
   @Column({ type: 'int' })
   quantity: number;
 
+  // Which of the product's available colors/sizes the buyer picked
+  @Column({ type: 'varchar', nullable: true })
+  selectedColor: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  selectedSize: string | null;
+
   @CreateDateColumn({ name: 'createdAt' })
   createdAt: Date;
 

@@ -129,19 +129,21 @@ export class ProductController {
     return this.facebookSyncService.reclassifyExisting();
   }
 
-  // Categorize existing Facebook-synced records by hashtag
+  // Categorize existing Facebook-synced records by hashtag/text, backfill
+  // colors/sizes from their "Өнгө:"/"Размер:" sections, and strip hashtags
+  // out of the stored description once they've been used for matching
   @Post('classify-categories')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiBearerAuth('access-token')
   @Roles(UserRoleEnum.ADMIN)
   @ApiOperation({
     summary:
-      'Assign a category to existing Facebook-synced records based on hashtags in their text',
+      'Assign a category and colors/sizes to existing Facebook-synced records, based on hashtags and the "Өнгө:"/"Размер:" sections in their text, then strip the hashtags from the stored text',
   })
   @ApiResponse({
     status: 201,
     description:
-      'Categorization completed: returns total/categorized/uncategorized counts',
+      'Completed: returns total/categorized/uncategorized/colorsSet/sizesSet/hashtagsStripped counts',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })

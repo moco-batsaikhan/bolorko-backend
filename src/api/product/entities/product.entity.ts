@@ -69,6 +69,14 @@ export class Product {
   @Column({ type: 'json', nullable: true })
   images: string[];
 
+  // Available colors/sizes — manually set, or parsed from a Facebook post's
+  // "Өнгө:"/"Размер:" sections during sync
+  @Column({ type: 'json', nullable: true })
+  colors: string[] | null;
+
+  @Column({ type: 'json', nullable: true })
+  sizes: string[] | null;
+
   // Facebook sync fields
   @Column({ type: 'varchar', unique: true, nullable: true })
   facebookPostId: string | null;

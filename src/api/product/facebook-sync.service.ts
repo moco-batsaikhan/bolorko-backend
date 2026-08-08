@@ -255,39 +255,78 @@ export class FacebookSyncService {
     return { total: synced.length, products, info };
   }
 
-  // Match already-synced Facebook posts to a category by hashtag, for posts
-  // that don't have one yet. Only fills in a category when a hashtag hits —
-  // never clears/overwrites an existing (e.g. manually set) categoryId.
+  // Match already-synced Facebook posts to a category by hashtag/text,
+  // backfill colors/sizes from their "Өнгө:"/"Размер:" sections (for posts
+  // synced before those fields existed), then strip hashtags out of the
+  // stored description now that they've served their purpose. Only fills
+  // in values that are currently unset — never clears/overwrites an
+  // existing (e.g. manually set) categoryId/colors/sizes.
   async reclassifyCategories(): Promise<{
     total: number;
     categorized: number;
     uncategorized: number;
+    colorsSet: number;
+    sizesSet: number;
+    hashtagsStripped: number;
   }> {
     const categories = await this.productCategoryRepository.find();
     const synced = await this.productRepository.find({
       where: { facebookPostId: Not(IsNull()) },
     });
 
-    const toUpdate: Product[] = [];
+    const toUpdate = new Set<Product>();
+    let categorized = 0;
+    let colorsSet = 0;
+    let sizesSet = 0;
+    let hashtagsStripped = 0;
+
     for (const product of synced) {
-      const matchedCategory = this.matchCategory(
-        product.description ?? '',
-        categories,
-      );
+      const message = product.description ?? '';
+
+      const matchedCategory = this.matchCategory(message, categories);
       if (matchedCategory && product.categoryId !== matchedCategory.id) {
         product.categoryId = matchedCategory.id;
-        toUpdate.push(product);
+        toUpdate.add(product);
+        categorized++;
+      }
+
+      if (!product.colors || product.colors.length === 0) {
+        const colors = this.extractListSection(message, 'Өнгө');
+        if (colors.length > 0) {
+          product.colors = colors;
+          toUpdate.add(product);
+          colorsSet++;
+        }
+      }
+
+      if (!product.sizes || product.sizes.length === 0) {
+        const sizes = this.extractListSection(message, 'Размер');
+        if (sizes.length > 0) {
+          product.sizes = sizes;
+          toUpdate.add(product);
+          sizesSet++;
+        }
+      }
+
+      const cleanedDescription = this.stripHashtags(message);
+      if (cleanedDescription !== message) {
+        product.description = cleanedDescription;
+        toUpdate.add(product);
+        hashtagsStripped++;
       }
     }
 
-    if (toUpdate.length > 0) {
-      await this.productRepository.save(toUpdate);
+    if (toUpdate.size > 0) {
+      await this.productRepository.save([...toUpdate]);
     }
 
     return {
       total: synced.length,
-      categorized: toUpdate.length,
-      uncategorized: synced.length - toUpdate.length,
+      categorized,
+      uncategorized: synced.length - categorized,
+      colorsSet,
+      sizesSet,
+      hashtagsStripped,
     };
   }
 
@@ -360,6 +399,17 @@ export class FacebookSyncService {
     return null;
   }
 
+  // Removes hashtags from post text and tidies up the whitespace left
+  // behind (collapsed blank lines/runs of spaces from the removal).
+  private stripHashtags(message: string): string {
+    return message
+      .replace(/#[^\s#]+/gu, '')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   // A post is a product ad when it mentions a price or carries a "зар" hashtag
   private classifyMessage(message: string): ProductPostType {
     const hasPrice = this.extractPrice(message) !== null;
@@ -374,11 +424,14 @@ export class FacebookSyncService {
     post: FacebookPost,
     migrateImages: boolean,
   ): Promise<void> {
-    const message = post.message!.trim();
+    const rawMessage = post.message!.trim();
+    // Hashtags are only useful for classification (postType/category) — not
+    // worth keeping in the stored description
+    const message = this.stripHashtags(rawMessage);
 
     product.name = this.extractName(message);
     product.description = message;
-    product.postType = this.classifyMessage(message);
+    product.postType = this.classifyMessage(rawMessage);
     if (migrateImages) {
       product.images = await this.migrateImagesToSpaces(post);
     }
@@ -386,6 +439,15 @@ export class FacebookSyncService {
     product.postedAt = post.created_time ? new Date(post.created_time) : null;
     product.lastSyncedAt = new Date();
     product.stock = product.stock ?? 5; // Preserve existing stock if already set
+
+    const colors = this.extractListSection(message, 'Өнгө');
+    if (colors.length > 0) {
+      product.colors = colors;
+    }
+    const sizes = this.extractListSection(message, 'Размер');
+    if (sizes.length > 0) {
+      product.sizes = sizes;
+    }
 
     const price = this.extractPrice(message);
     if (price !== null) {
@@ -445,6 +507,31 @@ export class FacebookSyncService {
         }
       }),
     );
+  }
+
+  // Parses a labeled section out of the post text, e.g.:
+  //   Өнгө:
+  //   • Хөх
+  //
+  //   Размер:
+  //   S, M, L
+  // Items may be bullet lines ("• Хөх") and/or comma-separated on one line
+  // ("S, M, L"); the section ends at the next blank line, the next known
+  // label, or the end of the message.
+  private extractListSection(message: string, label: string): string[] {
+    const pattern = new RegExp(
+      `${label}\\s*:\\s*\\n?([\\s\\S]*?)(?:\\n\\s*\\n|\\n\\s*(?:Өнгө|Размер)\\s*:|$)`,
+      'iu',
+    );
+    const match = message.match(pattern);
+    if (!match) {
+      return [];
+    }
+
+    return match[1]
+      .split(/[,\n]/)
+      .map((item) => item.replace(/^[\s•\-*]+/, '').trim())
+      .filter((item) => item.length > 0);
   }
 
   // First non-empty line of the post, truncated to fit varchar(255)

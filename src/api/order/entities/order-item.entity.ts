@@ -25,6 +25,13 @@ export class OrderItem {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   unitPrice: number;
 
+  // Which of the product's available colors/sizes the buyer picked
+  @Column({ type: 'varchar', nullable: true })
+  selectedColor: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  selectedSize: string | null;
+
   @ManyToOne(() => Order, (order) => order.orderItems, {
     onDelete: 'CASCADE',
   })

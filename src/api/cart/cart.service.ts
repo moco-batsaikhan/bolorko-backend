@@ -36,7 +36,8 @@ export class CartService {
   }
 
   async addToCart(userId: number, addToCartDto: AddToCartDto): Promise<Cart> {
-    const { productId, quantity } = addToCartDto;
+    const { productId, quantity, selectedColor, selectedSize } =
+      addToCartDto;
 
     // Verify product exists and has sufficient stock
     const product = await this.productService.findOne(productId);
@@ -49,9 +50,13 @@ export class CartService {
 
     const cart = await this.getOrCreateCart(userId);
 
-    // Check if item already exists in cart
+    // Check if the same product+variant already exists in cart — different
+    // colors/sizes of the same product are kept as separate cart items
     let existingItem = cart.cartItems?.find(
-      (item) => item.productId === productId,
+      (item) =>
+        item.productId === productId &&
+        (item.selectedColor ?? null) === (selectedColor ?? null) &&
+        (item.selectedSize ?? null) === (selectedSize ?? null),
     );
 
     if (existingItem) {
@@ -72,6 +77,8 @@ export class CartService {
         cartId: cart.id,
         productId,
         quantity,
+        selectedColor: selectedColor ?? null,
+        selectedSize: selectedSize ?? null,
       });
       await this.cartItemRepository.save(cartItem);
     }
