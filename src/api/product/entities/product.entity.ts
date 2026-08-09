@@ -133,11 +133,13 @@ export class Product {
   // Helper methods
   updateStock(quantity: number): void {
     this.stock = quantity;
-    if (this.stock <= 0) {
-      this.status = ProductStatus.OUT_OF_STOCK;
-    } else {
-      this.status = ProductStatus.ACTIVE;
-    }
+    // Status is no longer auto-toggled based on stock reaching 0 (disabled
+    // per request — stock running out should not make the product INACTIVE).
+    // if (this.stock <= 0) {
+    //   this.status = ProductStatus.OUT_OF_STOCK;
+    // } else {
+    //   this.status = ProductStatus.ACTIVE;
+    // }
   }
 
   updatePrice(price: number): void {

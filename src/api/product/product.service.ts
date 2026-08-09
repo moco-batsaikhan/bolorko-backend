@@ -51,10 +51,12 @@ export class ProductService {
     const product = this.productRepository.create(createProductDto);
     this.validateSalePrice(product);
 
-    // Set status based on stock
-    if (product.stock <= 0) {
-      product.status = ProductStatus.OUT_OF_STOCK;
-    }
+    // Status is not auto-set to OUT_OF_STOCK based on stock at creation
+    // (disabled per request — stock running out should not make the
+    // product INACTIVE).
+    // if (product.stock <= 0) {
+    //   product.status = ProductStatus.OUT_OF_STOCK;
+    // }
 
     const savedProduct = await this.productRepository.save(product);
 
@@ -119,6 +121,9 @@ export class ProductService {
       inactiveStatus: ProductStatus.INACTIVE,
     });
 
+    // Newest posts (both PRODUCT and INFO) first
+    query.orderBy('product.createdAt', 'DESC');
+
     // Backward-compatible: without page/limit, return the full array as
     // before (existing callers, e.g. the admin page, are unaffected)
     if (!page || !limit) {
@@ -126,7 +131,6 @@ export class ProductService {
     }
 
     const [data, total] = await query
-      .orderBy('product.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
@@ -169,6 +173,7 @@ export class ProductService {
       .andWhere('product.status != :inactiveStatus', {
         inactiveStatus: ProductStatus.INACTIVE,
       })
+      .orderBy('product.createdAt', 'DESC')
       .getMany();
   }
 
@@ -257,7 +262,9 @@ export class ProductService {
    *
    * Stock balance is not checked/enforced when placing an order (disabled
    * per request) — the `stock >= :quantity` gate that used to block
-   * decrementing below zero is removed, so stock can go negative.
+   * decrementing below zero is removed, so stock can go negative. Status
+   * is also no longer auto-flipped to OUT_OF_STOCK when stock hits 0
+   * (disabled per request).
    */
   async decreaseStock(
     id: number,
@@ -273,8 +280,6 @@ export class ProductService {
       .update(Product)
       .set({
         stock: () => 'stock - :quantity',
-        status: () =>
-          `CASE WHEN stock - :quantity <= 0 THEN '${ProductStatus.OUT_OF_STOCK}' ELSE status END`,
       })
       .where('id = :id', { id, quantity })
       .execute();
@@ -300,8 +305,6 @@ export class ProductService {
       .update(Product)
       .set({
         stock: () => 'stock + :quantity',
-        status: () =>
-          `CASE WHEN status = '${ProductStatus.OUT_OF_STOCK}' AND stock + :quantity > 0 THEN '${ProductStatus.ACTIVE}' ELSE status END`,
       })
       .where('id = :id', { id, quantity })
       .execute();

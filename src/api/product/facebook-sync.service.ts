@@ -479,6 +479,10 @@ export class FacebookSyncService {
     } else if (product.price === undefined || product.price === null) {
       product.price = 0;
     }
+
+    // Low-value/priceless posts aren't worth financing — no price or under
+    // 100,000₮ defaults to installment payment (Storepay/Pocket) disabled
+    product.installmentPaymentAllowed = Number(product.price) >= 100000;
   }
 
   // True when the product has no images yet, or still points at Facebook's
