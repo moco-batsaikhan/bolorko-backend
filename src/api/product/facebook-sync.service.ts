@@ -42,6 +42,13 @@ export interface FacebookSyncResult {
   skipped: number;
 }
 
+export interface FacebookLiveStatus {
+  isLive: boolean;
+  permalinkUrl: string | null;
+  embedHtml: string | null;
+  title: string | null;
+}
+
 @Injectable()
 export class FacebookSyncService {
   private readonly logger = new Logger(FacebookSyncService.name);
@@ -226,6 +233,73 @@ export class FacebookSyncService {
     }
 
     return posts;
+  }
+
+  // Checks whether the configured Facebook Page currently has an active
+  // live broadcast, for showing a "live now" embed on the website. Never
+  // throws — returns isLive: false on any config/API problem, since this
+  // is best-effort UI, not something that should break the page.
+  async getLiveVideo(): Promise<FacebookLiveStatus> {
+    const notLive: FacebookLiveStatus = {
+      isLive: false,
+      permalinkUrl: null,
+      embedHtml: null,
+      title: null,
+    };
+
+    const pageId = this.configService.get<string>('FACEBOOK_PAGE_ID');
+    const accessToken = this.configService.get<string>(
+      'FACEBOOK_PAGE_ACCESS_TOKEN',
+    );
+    if (!pageId || !accessToken) {
+      return notLive;
+    }
+
+    const version = this.configService.get<string>(
+      'FACEBOOK_GRAPH_API_VERSION',
+      'v23.0',
+    );
+
+    try {
+      const response = await axios.get(
+        `https://graph.facebook.com/${version}/${pageId}/live_videos`,
+        {
+          params: {
+            fields: 'id,status,permalink_url,embed_html,title',
+            broadcast_status: JSON.stringify(['LIVE']),
+            access_token: accessToken,
+          },
+          timeout: 10000,
+        },
+      );
+
+      const liveVideo = response.data?.data?.[0];
+      if (!liveVideo) {
+        return notLive;
+      }
+
+      const rawPermalink: string | undefined = liveVideo.permalink_url;
+      const permalinkUrl = rawPermalink
+        ? rawPermalink.startsWith('http')
+          ? rawPermalink
+          : `https://www.facebook.com${rawPermalink}`
+        : null;
+
+      return {
+        isLive: true,
+        permalinkUrl,
+        embedHtml: liveVideo.embed_html ?? null,
+        title: liveVideo.title ?? null,
+      };
+    } catch (error) {
+      const fbError = axios.isAxiosError(error)
+        ? error.response?.data?.error?.message
+        : undefined;
+      this.logger.warn(
+        `Facebook live status check failed: ${fbError ?? error}`,
+      );
+      return notLive;
+    }
   }
 
   // Reclassify already-saved Facebook posts with the current rules

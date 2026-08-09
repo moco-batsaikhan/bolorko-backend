@@ -90,6 +90,16 @@ export class ProductController {
     return this.facebookSyncService.triggerSync();
   }
 
+  // Public — polled by the website to show a "live now" banner/embed
+  @Get('facebook-live')
+  @ApiOperation({
+    summary: 'Check whether the Facebook Page is currently broadcasting live',
+  })
+  @ApiResponse({ status: 200, description: 'Live status retrieved' })
+  getFacebookLive() {
+    return this.facebookSyncService.getLiveVideo();
+  }
+
   // Cleanup endpoint
   @Post('cleanup')
   @UseGuards(JwtAuthGuard, RolesGuard)
