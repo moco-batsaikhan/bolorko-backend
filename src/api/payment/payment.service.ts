@@ -44,7 +44,7 @@ export class PaymentService {
   }
 
   async createInvoice(invoiceDto: InvoiceDto, user: any) {
-    const invoiceId = `MEGA-${nanoid()}`;
+    const invoiceId = `BOLORKO-${nanoid()}`;
 
     const invoice = this.invoiceRepository.create({
       invoiceId,
