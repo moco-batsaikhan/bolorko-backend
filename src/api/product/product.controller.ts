@@ -26,7 +26,7 @@ import {
   ApiBody,
   ApiQuery,
 } from '@nestjs/swagger';
-import { ProductPostType } from './entities/product.entity';
+import { ProductAvailability, ProductPostType } from './entities/product.entity';
 import { ProductService } from './product.service';
 import { ProductCategoryService } from './product-category.service';
 import { FacebookSyncService } from './facebook-sync.service';
@@ -263,6 +263,13 @@ export class ProductController {
     description: 'Search text matched against product name and description',
   })
   @ApiQuery({
+    name: 'availability',
+    enum: ProductAvailability,
+    required: false,
+    description:
+      'Filter by availability: TAKING_ORDERS (Захиалга авж байна) or READY (Бэлэн ирсэн)',
+  })
+  @ApiQuery({
     name: 'page',
     type: Number,
     required: false,
@@ -283,8 +290,16 @@ export class ProductController {
     @Query('search') search?: string,
     @Query('page', new ParseIntPipe({ optional: true })) page?: number,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+    @Query('availability') availability?: string,
   ) {
-    return this.productService.findAll(type, categoryId, search, page, limit);
+    return this.productService.findAll(
+      type,
+      categoryId,
+      search,
+      page,
+      limit,
+      availability,
+    );
   }
 
   @Get('featured')

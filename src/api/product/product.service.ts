@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import {
   Product,
+  ProductAvailability,
   ProductPostType,
   ProductStatus,
 } from './entities/product.entity';
@@ -70,6 +71,7 @@ export class ProductService {
     search?: string,
     page?: number,
     limit?: number,
+    availability?: string,
   ): Promise<Product[] | PaginatedProducts> {
     if (
       postType &&
@@ -77,6 +79,17 @@ export class ProductService {
     ) {
       throw new BadRequestException(
         `Invalid type "${postType}". Allowed values: ${Object.values(ProductPostType).join(', ')}`,
+      );
+    }
+
+    if (
+      availability &&
+      !Object.values(ProductAvailability).includes(
+        availability as ProductAvailability,
+      )
+    ) {
+      throw new BadRequestException(
+        `Invalid availability "${availability}". Allowed values: ${Object.values(ProductAvailability).join(', ')}`,
       );
     }
 
@@ -107,6 +120,12 @@ export class ProductService {
         '(product.name LIKE :search OR product.description LIKE :search)',
         { search: `%${search.trim()}%` },
       );
+    }
+
+    if (availability) {
+      query.andWhere('product.availability = :availability', {
+        availability,
+      });
     }
 
     // Zero-price PRODUCT ads aren't purchasable — don't show them in the
