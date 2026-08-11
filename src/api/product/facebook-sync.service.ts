@@ -621,8 +621,13 @@ export class FacebookSyncService {
   // ("S, M, L"); the section ends at the next blank line, the next known
   // label, or the end of the message.
   private extractListSection(message: string, label: string): string[] {
+    // "Үнэ:" must also terminate the section — otherwise a price line
+    // immediately following (no blank line) a Размер/Өнгө block, and
+    // followed by no further Өнгө/Размер label, gets swallowed into it
+    // (e.g. "Размер: ...\nӨнгө: ...\nҮнэ: 90.000₮" without a blank line
+    // between Өнгө and Үнэ).
     const pattern = new RegExp(
-      `${label}\\s*:\\s*\\n?([\\s\\S]*?)(?:\\n\\s*\\n|\\n\\s*(?:Өнгө|Размер)\\s*:|$)`,
+      `${label}\\s*:\\s*\\n?([\\s\\S]*?)(?:\\n\\s*\\n|\\n\\s*(?:Өнгө|Размер|Үнэ)\\s*:|$)`,
       'iu',
     );
     const match = message.match(pattern);

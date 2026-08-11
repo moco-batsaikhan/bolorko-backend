@@ -17,6 +17,14 @@ export enum ProductStatus {
   OUT_OF_STOCK = 'OUT_OF_STOCK',
 }
 
+// Separate from ProductStatus (which controls storefront visibility):
+// tracks whether the physical stock has arrived yet, for Facebook-style
+// pre-order sales where a product is posted/orderable before it's in hand.
+export enum ProductAvailability {
+  TAKING_ORDERS = 'TAKING_ORDERS', // Захиалга авж байна
+  READY = 'READY', // Бэлэн ирсэн
+}
+
 export enum ProductPostType {
   PRODUCT = 'PRODUCT',
   INFO = 'INFO',
@@ -55,6 +63,13 @@ export class Product {
     default: ProductStatus.ACTIVE,
   })
   status: ProductStatus;
+
+  @Column({
+    type: 'enum',
+    enum: ProductAvailability,
+    default: ProductAvailability.READY,
+  })
+  availability: ProductAvailability;
 
   @Column({
     type: 'enum',

@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { ProductStatus } from '../entities/product.entity';
+import { ProductStatus, ProductAvailability } from '../entities/product.entity';
 
 export class CreateProductDto {
   @ApiProperty({
@@ -91,6 +91,17 @@ export class CreateProductDto {
   @IsEnum(ProductStatus)
   @IsOptional()
   status?: ProductStatus;
+
+  @ApiProperty({
+    description:
+      'Whether the product is currently taking pre-orders or the stock has arrived and is ready to ship',
+    enum: ProductAvailability,
+    example: ProductAvailability.READY,
+    required: false,
+  })
+  @IsEnum(ProductAvailability)
+  @IsOptional()
+  availability?: ProductAvailability;
 
   @ApiProperty({
     description: 'Product images array',

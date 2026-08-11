@@ -203,6 +203,12 @@ export class ProductController {
           enum: ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK'],
           example: 'ACTIVE',
         },
+        availability: {
+          type: 'string',
+          enum: ['TAKING_ORDERS', 'READY'],
+          example: 'READY',
+          description: 'TAKING_ORDERS = Захиалга авж байна, READY = Бэлэн ирсэн',
+        },
         images: {
           type: 'array',
           items: {
@@ -516,6 +522,12 @@ export class ProductController {
           type: 'string',
           enum: ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK'],
           example: 'ACTIVE',
+        },
+        availability: {
+          type: 'string',
+          enum: ['TAKING_ORDERS', 'READY'],
+          example: 'READY',
+          description: 'TAKING_ORDERS = Захиалга авж байна, READY = Бэлэн ирсэн',
         },
         images: {
           type: 'array',
