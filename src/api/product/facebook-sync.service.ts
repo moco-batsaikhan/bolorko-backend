@@ -147,6 +147,12 @@ export class FacebookSyncService {
           continue;
         }
 
+        // Only hashtagged posts get published to the site
+        if (this.extractHashtags(post.message).length === 0) {
+          result.skipped++;
+          continue;
+        }
+
         const existing = await this.productRepository.findOne({
           where: { facebookPostId: post.id },
         });
