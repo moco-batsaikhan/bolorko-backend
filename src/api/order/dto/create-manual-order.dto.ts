@@ -8,12 +8,14 @@ import {
   IsOptional,
   IsNotEmpty,
   IsEnum,
+  IsDateString,
   ArrayMinSize,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   OrderStatus,
+  OrderSource,
   OrderPaymentStatus,
 } from '../entities/order.entity';
 
@@ -64,6 +66,17 @@ export class ManualOrderItemDto {
 }
 
 export class CreateManualOrderDto {
+  @ApiProperty({
+    description:
+      'Where the order came from. Defaults to FACEBOOK since this endpoint exists for orders taken outside the website checkout flow.',
+    enum: OrderSource,
+    example: OrderSource.FACEBOOK,
+    required: false,
+  })
+  @IsEnum(OrderSource)
+  @IsOptional()
+  source?: OrderSource;
+
   @ApiProperty({
     description: 'Customer name',
     example: 'Бат-Эрдэнэ',
@@ -127,4 +140,14 @@ export class CreateManualOrderDto {
   @IsEnum(OrderPaymentStatus)
   @IsOptional()
   paymentStatus?: OrderPaymentStatus;
+
+  @ApiProperty({
+    description:
+      'When the order actually happened (e.g. the Facebook chat date), as opposed to the moment the admin typed it in. Defaults to now when omitted.',
+    example: '2026-07-15',
+    required: false,
+  })
+  @IsDateString()
+  @IsOptional()
+  orderDate?: string;
 }

@@ -96,7 +96,9 @@ export class OrderService {
   }
 
   /**
-   * Manual (Facebook) order entered by an admin
+   * Manual order entered by an admin (Facebook or other off-site channels).
+   * createdAt defaults to now but can be backdated via dto.orderDate — admins
+   * often enter these a while after the sale actually happened.
    */
   async createManual(dto: CreateManualOrderDto): Promise<Order> {
     const orderId = await this.dataSource.transaction(async (manager) => {
@@ -109,7 +111,7 @@ export class OrderService {
       const orderRepo = manager.getRepository(Order);
       const order = orderRepo.create({
         userId: null,
-        source: OrderSource.FACEBOOK,
+        source: dto.source ?? OrderSource.FACEBOOK,
         paymentMethod: PaymentMethod.MANUAL,
         paymentStatus: dto.paymentStatus ?? OrderPaymentStatus.UNPAID,
         status: dto.status ?? OrderStatus.PENDING,
@@ -118,6 +120,7 @@ export class OrderService {
         address: dto.address ?? null,
         note: dto.note ?? null,
         total: total,
+        ...(dto.orderDate ? { createdAt: new Date(dto.orderDate) } : {}),
       });
 
       const savedOrder = await orderRepo.save(order);
@@ -192,6 +195,7 @@ export class OrderService {
         }
       }
 
+      if (dto.source !== undefined) order.source = dto.source;
       if (dto.customerName !== undefined) order.customerName = dto.customerName;
       if (dto.phone !== undefined) order.phone = dto.phone;
       if (dto.address !== undefined) order.address = dto.address;
@@ -199,6 +203,7 @@ export class OrderService {
       if (dto.status !== undefined) order.status = dto.status;
       if (dto.paymentStatus !== undefined)
         order.paymentStatus = dto.paymentStatus;
+      if (dto.orderDate !== undefined) order.createdAt = new Date(dto.orderDate);
 
       await orderRepo.save(order);
 
@@ -225,6 +230,18 @@ export class OrderService {
 
     if (filters.source) {
       query.andWhere('order.source = :source', { source: filters.source });
+    }
+
+    if (filters.search?.trim()) {
+      const search = `%${filters.search.trim()}%`;
+      query.andWhere(
+        `(order.phone LIKE :search
+          OR order.customerName LIKE :search
+          OR user.phone LIKE :search
+          OR user.name LIKE :search
+          OR CAST(order.id AS CHAR) LIKE :search)`,
+        { search },
+      );
     }
 
     if (filters.status) {

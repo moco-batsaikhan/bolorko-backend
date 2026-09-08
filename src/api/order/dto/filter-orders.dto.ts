@@ -1,4 +1,11 @@
-import { IsEnum, IsOptional, IsInt, Min, IsDateString } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsInt,
+  IsString,
+  Min,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { OrderStatus, OrderSource } from '../entities/order.entity';
@@ -12,6 +19,16 @@ export class FilterOrdersDto {
   @IsEnum(OrderSource)
   @IsOptional()
   source?: OrderSource;
+
+  @ApiProperty({
+    description:
+      'Search by order id, customer name or phone (matches either the manual-order customer fields or the linked user)',
+    example: '99112233',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  search?: string;
 
   @ApiProperty({
     description: 'Filter by order status',
