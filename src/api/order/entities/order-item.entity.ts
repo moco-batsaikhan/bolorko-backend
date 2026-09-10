@@ -16,8 +16,14 @@ export class OrderItem {
   @Column({ name: 'orderId' })
   orderId: number;
 
-  @Column({ name: 'productId' })
-  productId: number;
+  // Каталогийн бараа сонгосон бол холбогдоно — гараар нэрлэсэн (каталогт
+  // байхгүй) барааны хувьд хоосон, оронд нь customName ашиглана
+  @Column({ name: 'productId', nullable: true })
+  productId: number | null;
+
+  // Каталогт байхгүй, admin-ы гараар бичсэн барааны нэр (productId хоосон үед)
+  @Column({ type: 'varchar', nullable: true })
+  customName: string | null;
 
   @Column({ type: 'int' })
   quantity: number;
@@ -38,9 +44,9 @@ export class OrderItem {
   @JoinColumn({ name: 'orderId' })
   order: Order;
 
-  @ManyToOne(() => Product, { nullable: false })
+  @ManyToOne(() => Product, { nullable: true })
   @JoinColumn({ name: 'productId' })
-  product: Product;
+  product: Product | null;
 
   // Helper methods
   calculateSubtotal(): number {

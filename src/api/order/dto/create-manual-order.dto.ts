@@ -21,11 +21,24 @@ import {
 
 export class ManualOrderItemDto {
   @ApiProperty({
-    description: 'Product ID',
+    description:
+      'Product ID — сонгосон каталогийн бараа байвал. Хоосон бол customName заавал байна.',
     example: 1,
+    required: false,
   })
   @IsNumber()
-  productId: number;
+  @IsOptional()
+  productId?: number;
+
+  @ApiProperty({
+    description:
+      'Каталогт байхгүй, admin-ы гараар бичсэн барааны нэр. productId өгөгдөөгүй үед заавал.',
+    example: 'Захиалгаар хийсэн бэлэг баглаа',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  customName?: string;
 
   @ApiProperty({
     description: 'Quantity',

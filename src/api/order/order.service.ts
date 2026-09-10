@@ -187,6 +187,7 @@ export class OrderService {
         await this.restoreStock(order, manager);
       } else if (!willBeCancelled && wasCancelled) {
         for (const orderItem of order.orderItems) {
+          if (!orderItem.productId) continue;
           await this.productService.decreaseStock(
             orderItem.productId,
             orderItem.quantity,
@@ -366,7 +367,8 @@ export class OrderService {
     >,
   ): Promise<
     Array<{
-      productId: number;
+      productId: number | null;
+      customName: string | null;
       quantity: number;
       unitPrice: number;
       selectedColor: string | null;
@@ -374,7 +376,8 @@ export class OrderService {
     }>
   > {
     const itemsData: Array<{
-      productId: number;
+      productId: number | null;
+      customName: string | null;
       quantity: number;
       unitPrice: number;
       selectedColor: string | null;
@@ -382,6 +385,29 @@ export class OrderService {
     }> = [];
 
     for (const item of items) {
+      // Гараар бүртгэх захиалгад каталогт байхгүй бараа нэрээр л
+      // (productId-гүйгээр) орж болно — вэбсайтын жинхэнэ захиалга үргэлж
+      // productId-тай ирдэг тул энэ салаа зөвхөн admin-ы гар захиалгад ажиллана
+      const customName = 'customName' in item ? item.customName?.trim() : undefined;
+
+      if (!item.productId) {
+        if (!customName) {
+          throw new BadRequestException(
+            'productId эсвэл customName-ийн аль нэг нь заавал байх ёстой',
+          );
+        }
+
+        itemsData.push({
+          productId: null,
+          customName,
+          quantity: item.quantity,
+          unitPrice: 'unitPrice' in item && item.unitPrice != null ? item.unitPrice : 0,
+          selectedColor: item.selectedColor ?? null,
+          selectedSize: item.selectedSize ?? null,
+        });
+        continue;
+      }
+
       const product = await this.productService.findOne(item.productId);
 
       // Stock balance is not checked when placing an order (disabled per
@@ -399,6 +425,7 @@ export class OrderService {
 
       itemsData.push({
         productId: item.productId,
+        customName: null,
         quantity: item.quantity,
         unitPrice: overridePrice ?? product.getEffectivePrice(),
         selectedColor: item.selectedColor ?? null,
@@ -412,7 +439,8 @@ export class OrderService {
   private async saveItemsAndDecreaseStock(
     orderId: number,
     itemsData: Array<{
-      productId: number;
+      productId: number | null;
+      customName: string | null;
       quantity: number;
       unitPrice: number;
       selectedColor: string | null;
@@ -424,16 +452,19 @@ export class OrderService {
     const orderItems: OrderItem[] = [];
 
     for (const itemData of itemsData) {
-      await this.productService.decreaseStock(
-        itemData.productId,
-        itemData.quantity,
-        manager,
-      );
+      if (itemData.productId) {
+        await this.productService.decreaseStock(
+          itemData.productId,
+          itemData.quantity,
+          manager,
+        );
+      }
 
       orderItems.push(
         orderItemRepo.create({
           orderId,
           productId: itemData.productId,
+          customName: itemData.customName,
           quantity: itemData.quantity,
           unitPrice: itemData.unitPrice,
           selectedColor: itemData.selectedColor,
@@ -450,6 +481,7 @@ export class OrderService {
     manager: EntityManager,
   ): Promise<void> {
     for (const orderItem of order.orderItems) {
+      if (!orderItem.productId) continue;
       await this.productService.increaseStock(
         orderItem.productId,
         orderItem.quantity,
