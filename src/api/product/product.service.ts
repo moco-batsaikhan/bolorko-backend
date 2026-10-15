@@ -72,6 +72,9 @@ export class ProductService {
     page?: number,
     limit?: number,
     availability?: string,
+    // Admin listing: keep inactive and zero-price products in the result so
+    // the admin panel can see (and fix) everything the public site hides
+    includeHidden = false,
   ): Promise<Product[] | PaginatedProducts> {
     if (
       postType &&
@@ -128,17 +131,18 @@ export class ProductService {
       });
     }
 
-    // Zero-price PRODUCT ads aren't purchasable — don't show them in the
-    // public listing. INFO posts have no price by nature and stay visible.
-    query.andWhere(
-      '(product.price > 0 OR product.postType = :infoType)',
-      { infoType: ProductPostType.INFO },
-    );
+    if (!includeHidden) {
+      // Zero-price PRODUCT ads aren't purchasable — don't show them in the
+      // public listing. INFO posts have no price by nature and stay visible.
+      query.andWhere('(product.price > 0 OR product.postType = :infoType)', {
+        infoType: ProductPostType.INFO,
+      });
 
-    // Inactive products (deactivated by admin) shouldn't appear on the site
-    query.andWhere('product.status != :inactiveStatus', {
-      inactiveStatus: ProductStatus.INACTIVE,
-    });
+      // Inactive products (deactivated by admin) shouldn't appear on the site
+      query.andWhere('product.status != :inactiveStatus', {
+        inactiveStatus: ProductStatus.INACTIVE,
+      });
+    }
 
     // Newest posts (both PRODUCT and INFO) first
     query.orderBy('product.createdAt', 'DESC');

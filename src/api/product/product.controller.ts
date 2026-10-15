@@ -302,6 +302,63 @@ export class ProductController {
     );
   }
 
+  // Admin listing — same filters as GET /products, but nothing is hidden:
+  // inactive and zero-price products are returned too, so the admin panel can
+  // find and fix them (the public GET /products keeps hiding them).
+  @Get('admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth('access-token')
+  @Roles(UserRoleEnum.ADMIN)
+  @ApiOperation({
+    summary: 'Get all products for the admin panel, including inactive ones',
+  })
+  @ApiQuery({
+    name: 'type',
+    enum: ProductPostType,
+    required: false,
+    description: 'Filter by post type: PRODUCT (ads) or INFO (announcements)',
+  })
+  @ApiQuery({
+    name: 'categoryId',
+    type: Number,
+    required: false,
+    description:
+      'Filter by category. A main category also includes products of its sub categories.',
+  })
+  @ApiQuery({
+    name: 'search',
+    type: String,
+    required: false,
+    description: 'Search text matched against product name and description',
+  })
+  @ApiQuery({
+    name: 'availability',
+    enum: ProductAvailability,
+    required: false,
+    description:
+      'Filter by availability: TAKING_ORDERS (Захиалга авч байна) or READY (Бэлэн ирсэн)',
+  })
+  @ApiResponse({ status: 200, description: 'Products retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  findAllForAdmin(
+    @Query('type') type?: string,
+    @Query('categoryId', new ParseIntPipe({ optional: true }))
+    categoryId?: number,
+    @Query('search') search?: string,
+    @Query('availability') availability?: string,
+  ) {
+    return this.productService.findAll(
+      type,
+      categoryId,
+      search,
+      undefined,
+      undefined,
+      availability,
+      true,
+    );
+  }
+
   @Get('featured')
   @ApiOperation({ summary: 'Get featured active products' })
   @ApiResponse({
